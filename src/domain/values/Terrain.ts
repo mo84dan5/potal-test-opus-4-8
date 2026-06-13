@@ -13,6 +13,12 @@ export interface FlatSpot {
   x: number;
   z: number;
   radius: number;
+  /**
+   * 内側の完全平坦域の半径 [m](省略時0)。
+   * `d <= flatRadius` では高さ0、`flatRadius < d < radius` で元の起伏へ滑らかに復帰する。
+   * 家など占有面積を持つ構造物の足元を確実に平らにするために使う。
+   */
+  flatRadius?: number;
 }
 
 /**
@@ -36,8 +42,15 @@ export class HillyTerrain implements HeightField {
     for (const spot of this.flatSpots) {
       const d = Math.hypot(x - spot.x, z - spot.z);
       if (d >= spot.radius) continue;
-      const t = d / spot.radius; // 0(中心)→1(縁)
-      h *= t * t * (3 - 2 * t); // smoothstep で滑らかに 0 へ
+      const inner = spot.flatRadius ?? 0;
+      if (d <= inner) {
+        h = 0; // 内側プラトーは完全に平坦
+        continue;
+      }
+      const t = (inner < spot.radius)
+        ? (d - inner) / (spot.radius - inner) // 内縁0 → 外縁1
+        : 1;
+      h *= t * t * (3 - 2 * t); // smoothstep で滑らかに元の起伏へ
     }
     return h;
   }

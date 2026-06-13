@@ -88,12 +88,23 @@ const FLAT_SPAWN_RADIUS = 4; // スポーン(原点)の平坦化半径 [m]
 
 // 地形: ワールドごとの振幅+ポータル・スポーン周辺の平坦化
 const FLAT_HOUSE_RADIUS = 7; // 家の周辺の平坦化半径 [m]
+// 家のフットプリント(半対角)を完全に覆う平坦域。床が地面の起伏で突き抜けないようにする。
+// 半対角 = hypot(width/2, depth/2) に少し余白を足す。
+const FLAT_HOUSE_PLATEAU_RADIUS =
+  Math.hypot(HOUSE.width / 2, HOUSE.depth / 2) + 0.6;
 
 const buildTerrain = (def: WorldDef): HeightField =>
   new HillyTerrain(def.terrainAmplitude, [
     ...def.portals.map((p) => ({ x: p.x, z: p.z, radius: FLAT_PORTAL_RADIUS })),
     { x: 0, z: 0, radius: FLAT_SPAWN_RADIUS },
-    ...(def.house ? [{ x: def.house.x, z: def.house.z, radius: FLAT_HOUSE_RADIUS }] : []),
+    ...(def.house
+      ? [{
+          x: def.house.x,
+          z: def.house.z,
+          radius: FLAT_HOUSE_RADIUS,
+          flatRadius: FLAT_HOUSE_PLATEAU_RADIUS,
+        }]
+      : []),
   ]);
 
 // 家: テレビ・テーブルのインタラクタブルと、壁・家具のコライダー

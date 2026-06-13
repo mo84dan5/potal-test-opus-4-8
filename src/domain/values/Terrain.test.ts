@@ -36,4 +36,32 @@ describe('Terrain', () => {
     const outer = t.heightAt(5.001, 0);
     expect(Math.abs(inner - outer)).toBeLessThan(0.01);
   });
+
+  it('flatRadius 内は完全に平坦(プラトー)', () => {
+    const t = new HillyTerrain(1.0, [
+      { x: 7, z: 11, radius: 8, flatRadius: 4 },
+    ]);
+    // 中心〜プラトー内縁まではどこでも高さ0
+    for (const [dx, dz] of [[0, 0], [3, 0], [0, -3.5], [2.5, 2.5], [3.99, 0]] as const) {
+      expect(t.heightAt(7 + dx, 11 + dz)).toBeCloseTo(0);
+    }
+  });
+
+  it('flatRadius の外側〜radius は smoothstep で起伏へ復帰し、radius 外は元のまま', () => {
+    const bumpy = new HillyTerrain(1.0);
+    const t = new HillyTerrain(1.0, [
+      { x: 0, z: 0, radius: 8, flatRadius: 4 },
+    ]);
+    // プラトー外縁直後はまだほぼ平坦
+    expect(Math.abs(t.heightAt(4.1, 0))).toBeLessThan(Math.abs(bumpy.heightAt(4.1, 0)));
+    // radius の外は元の地形と一致
+    expect(t.heightAt(12, 0)).toBeCloseTo(bumpy.heightAt(12, 0));
+  });
+
+  it('flatRadius のプラトー外縁で連続', () => {
+    const t = new HillyTerrain(1.0, [{ x: 0, z: 0, radius: 8, flatRadius: 4 }]);
+    const inside = t.heightAt(3.999, 0);
+    const justOutside = t.heightAt(4.001, 0);
+    expect(Math.abs(inside - justOutside)).toBeLessThan(0.01);
+  });
 });
