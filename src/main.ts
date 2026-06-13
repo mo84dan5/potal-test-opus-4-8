@@ -25,7 +25,12 @@ import {
   PORTAL_BUBBLE_ANCHOR_Y,
   PORTAL_HALF_WIDTH,
   PORTAL_HEIGHT,
+  PORTAL_HOUSE,
+  PORTAL_HOUSE_WALL_COLLIDER_RADIUS,
   PORTAL_PILLAR_RADIUS,
+  portalHouseWallColliderSpots,
+  ROOM_WALL_COLLIDER_RADIUS,
+  roomWallColliderSpots,
   WORLD_DEFS,
   WorldDef,
   WorldObjectSpec,
@@ -92,6 +97,9 @@ const FLAT_HOUSE_RADIUS = 7; // 家の周辺の平坦化半径 [m]
 // 半対角 = hypot(width/2, depth/2) に少し余白を足す。
 const FLAT_HOUSE_PLATEAU_RADIUS =
   Math.hypot(HOUSE.width / 2, HOUSE.depth / 2) + 0.6;
+// 室内ワールド型の家(小屋)のフットプリントを覆う平坦域
+const FLAT_PORTAL_HOUSE_PLATEAU_RADIUS =
+  Math.hypot(PORTAL_HOUSE.width / 2, PORTAL_HOUSE.depth / 2) + 0.6;
 
 const buildTerrain = (def: WorldDef): HeightField =>
   new HillyTerrain(def.terrainAmplitude, [
@@ -103,6 +111,14 @@ const buildTerrain = (def: WorldDef): HeightField =>
           z: def.house.z,
           radius: FLAT_HOUSE_RADIUS,
           flatRadius: FLAT_HOUSE_PLATEAU_RADIUS,
+        }]
+      : []),
+    ...(def.portalHouse
+      ? [{
+          x: def.portalHouse.x,
+          z: def.portalHouse.z,
+          radius: FLAT_HOUSE_RADIUS,
+          flatRadius: FLAT_PORTAL_HOUSE_PLATEAU_RADIUS,
         }]
       : []),
   ]);
@@ -140,6 +156,27 @@ const houseColliders = (def: WorldDef): Collider[] => {
     { position: new Vec3(hx + HOUSE.tv.x, 0, hz + HOUSE.tv.z), radius: 0.6 },
     { position: new Vec3(hx + HOUSE.table.x, 0, hz + HOUSE.table.z), radius: 0.85 },
   ];
+};
+
+// 室内ワールド型の家(外観小屋)の壁コライダー(+Z面のドア開口=ポータルは通過可能)
+const portalHouseColliders = (def: WorldDef): Collider[] => {
+  if (!def.portalHouse) return [];
+  const { x: hx, z: hz } = def.portalHouse;
+  return portalHouseWallColliderSpots(hx, hz).map((s) => ({
+    position: new Vec3(s.x, 0, s.z),
+    radius: PORTAL_HOUSE_WALL_COLLIDER_RADIUS,
+  }));
+};
+
+// 室内ワールド(部屋)の壁コライダー。玄関の戻りポータル位置に開口を空ける
+const PORTAL_DOOR_GAP_WIDTH = PORTAL_HALF_WIDTH * 2 + 0.6;
+const roomColliders = (def: WorldDef): Collider[] => {
+  if (!def.room) return [];
+  const doorX = def.portals[0]?.x ?? 0; // 玄関(戻り)ポータルのX
+  return roomWallColliderSpots(def.room, doorX, PORTAL_DOOR_GAP_WIDTH).map((s) => ({
+    position: new Vec3(s.x, 0, s.z),
+    radius: ROOM_WALL_COLLIDER_RADIUS,
+  }));
 };
 
 const buildWorld = (def: WorldDef): World => {
@@ -188,6 +225,8 @@ const buildWorld = (def: WorldDef): World => {
     [
       ...toColliders(def.objects),
       ...houseColliders(def),
+      ...portalHouseColliders(def),
+      ...roomColliders(def),
       ...portals.flatMap(portalPillarColliders),
       ...npcs.map((n) => n.collider),
     ],

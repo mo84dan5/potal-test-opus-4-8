@@ -60,6 +60,22 @@ export interface HouseSpec {
   z: number;
 }
 
+/**
+ * 室内ワールド型の家(外観の小屋)の位置。ドアは +Z 向きで、その中央(z + depth/2)に
+ * 室内ワールドへ通じるポータルが立つ。ポータル本体は当該ワールドの portals に定義する。
+ */
+export interface PortalHouseSpec {
+  x: number;
+  z: number;
+}
+
+/** 室内ワールド(囲まれた部屋)の寸法 [m] */
+export interface RoomSpec {
+  width: number;
+  depth: number;
+  height: number;
+}
+
 /** 家の寸法と家具のローカル配置(ドアは +Z 面の中央) */
 export const HOUSE = {
   width: 6,
@@ -104,6 +120,70 @@ export function houseWallColliderSpots(
   return spots;
 }
 
+/**
+ * 室内ワールド型の家(外観の小屋)の寸法。ドアは +Z 面の中央。
+ * ドア開口はポータル面(全幅 = PORTAL_HALF_WIDTH×2 = 2.8)を収めるため広めに取る。
+ */
+export const PORTAL_HOUSE = {
+  width: 6,
+  depth: 5,
+  wallHeight: 3.2,
+  doorWidth: 3.0,
+} as const;
+
+/**
+ * 室内ワールド型の家の外観小屋の壁コライダー位置(XZ)。
+ * houseWallColliderSpots と同方式で、+Z 面のドア開口(=ポータル位置)だけ除外する。
+ */
+export const PORTAL_HOUSE_WALL_COLLIDER_RADIUS = 0.4;
+export function portalHouseWallColliderSpots(
+  hx: number,
+  hz: number,
+): Array<{ x: number; z: number }> {
+  const spots: Array<{ x: number; z: number }> = [];
+  const w = PORTAL_HOUSE.width / 2;
+  const d = PORTAL_HOUSE.depth / 2;
+  const step = 0.5;
+  for (let x = -w; x <= w + 1e-6; x += step) {
+    spots.push({ x: hx + x, z: hz - d }); // 背面
+    if (Math.abs(x) > PORTAL_HOUSE.doorWidth / 2 + 0.2) {
+      spots.push({ x: hx + x, z: hz + d }); // 前面(ドア開口を除く)
+    }
+  }
+  for (let z = -d + step; z <= d - step + 1e-6; z += step) {
+    spots.push({ x: hx - w, z: hz + z }); // 左側面
+    spots.push({ x: hx + w, z: hz + z }); // 右側面
+  }
+  return spots;
+}
+
+/**
+ * 室内ワールド(部屋)の壁コライダー位置(XZ・部屋中心が原点)。
+ * 玄関壁(-Z)の doorX を中心に doorWidth の開口を空け、戻りポータルへ通れるようにする。
+ */
+export const ROOM_WALL_COLLIDER_RADIUS = 0.5;
+export function roomWallColliderSpots(
+  room: RoomSpec,
+  doorX: number,
+  doorWidth: number,
+): Array<{ x: number; z: number }> {
+  const spots: Array<{ x: number; z: number }> = [];
+  const w = room.width / 2;
+  const d = room.depth / 2;
+  const step = 0.8;
+  for (let x = -w; x <= w + 1e-6; x += step) {
+    if (Math.abs(x - doorX) > doorWidth / 2 + 0.3) {
+      spots.push({ x, z: -d }); // 玄関壁(ドア開口を除く)
+    }
+    spots.push({ x, z: d }); // 奥壁
+  }
+  for (let z = -d + step; z <= d - step + 1e-6; z += step) {
+    spots.push({ x: -w, z }); // 左壁
+    spots.push({ x: w, z }); // 右壁
+  }
+  return spots;
+}
+
 export interface WorldDef {
   id: string;
   name: string;
@@ -112,6 +192,12 @@ export interface WorldDef {
   npcs: NpcSpec[];
   /** 家(入れる建物)。ドアは +Z 向き */
   house?: HouseSpec;
+  /** 室内ワールド型の家(外観の小屋)。ドア中央のポータルで room ワールドへ飛ぶ */
+  portalHouse?: PortalHouseSpec;
+  /** このワールドが室内(囲まれた部屋)である場合の寸法。指定時は屋外環境を描かない */
+  room?: RoomSpec;
+  /** 室内ワールドか(屋外の空・地面・地形を描かない) */
+  interior?: boolean;
   /** 地形起伏の振幅 [m] */
   terrainAmplitude: number;
 }
@@ -162,6 +248,8 @@ export const WORLD_DEFS: WorldDef[] = [
     portals: [
       { id: 'day-night', x: 0, z: -6, yaw: 0, targetWorldId: 'night', targetPortalId: 'night-day', frameColor: 0x7df9ff },
       { id: 'day-snow', x: 12, z: 2, yaw: -Math.PI / 2, targetWorldId: 'snow', targetPortalId: 'snow-day', frameColor: 0x9adcff },
+      // 室内ワールド型の家のドア(小屋 (10,-13) の +Z 面中央 = z -13 + depth/2)
+      { id: 'day-grandhall', x: 10, z: -10.5, yaw: 0, targetWorldId: 'grand-hall', targetPortalId: 'grandhall-day', frameColor: 0xffd24d },
     ],
     npcs: [
       {
@@ -194,6 +282,8 @@ export const WORLD_DEFS: WorldDef[] = [
       },
     ],
     house: { x: -10, z: -13 },
+    // 入ると広大な室内ワールド「大広間」へ飛ぶ小屋(ドアは +Z 向き)
+    portalHouse: { x: 10, z: -13 },
   },
   {
     id: 'night',
@@ -231,6 +321,7 @@ export const WORLD_DEFS: WorldDef[] = [
         ],
       },
     ],
+    house: { x: -9, z: -13 },
   },
   {
     id: 'snow',
@@ -266,6 +357,7 @@ export const WORLD_DEFS: WorldDef[] = [
         ],
       },
     ],
+    house: { x: 10, z: -12 },
   },
   {
     id: 'ruins',
@@ -299,6 +391,38 @@ export const WORLD_DEFS: WorldDef[] = [
           'わたしは遺跡を調べている学者だ。この場所からが一番よく見える。',
           '柱の配置には規則がある。星の並びと同じなんだよ。',
           'この夕日は何百年も沈んでいない。不思議だろう?',
+        ],
+      },
+    ],
+    house: { x: 10, z: -12 },
+  },
+  {
+    // 室内ワールド: 昼の世界の小屋(portalHouse)のドアから飛んでくる広大な大広間。
+    // 外の小屋より遥かに広い(TARDIS型)。room 指定により屋外環境は描かない。
+    id: 'grand-hall',
+    interior: true,
+    terrainAmplitude: 0,
+    name: '大広間',
+    room: { width: 30, depth: 24, height: 6 },
+    objects: [
+      { kind: 'pillar', x: -8, z: -4, size: 5.2, name: '大柱', anchorY: 5.6, collisionRadius: 0.7, bubble: 'これは大広間の柱です', dialogue: PILLAR_DIALOGUE },
+      { kind: 'pillar', x: 8, z: -4, size: 5.2, name: '大柱', anchorY: 5.6, collisionRadius: 0.7, bubble: 'これは大広間の柱です', dialogue: PILLAR_DIALOGUE },
+      { kind: 'pillar', x: -8, z: 5, size: 5.2, name: '大柱', anchorY: 5.6, collisionRadius: 0.7, bubble: 'これは大広間の柱です', dialogue: PILLAR_DIALOGUE },
+      { kind: 'pillar', x: 8, z: 5, size: 5.2, name: '大柱', anchorY: 5.6, collisionRadius: 0.7, bubble: 'これは大広間の柱です', dialogue: PILLAR_DIALOGUE },
+      { kind: 'crystal', x: 0, z: 2, size: 3.0, color: 0xffe08a, name: '中央の結晶', anchorY: 3.4, collisionRadius: 0.6, bubble: 'これは中央の結晶です', dialogue: ['ホールの中央で淡く輝く大きな結晶だ。', '見上げるほど高い天井をほのかに照らしている。'] },
+    ],
+    portals: [
+      // 玄関(戻り)ポータル。玄関壁(z=-12)の手前に立ち、法線は +Z(室内向き)
+      { id: 'grandhall-day', x: 0, z: -11, yaw: 0, targetWorldId: 'day', targetPortalId: 'day-grandhall', frameColor: 0xffd24d },
+    ],
+    npcs: [
+      {
+        x: 0, z: 7, name: 'ホールの主', color: 0x8a6db0, wanderRadius: 0, yaw: Math.PI,
+        bubble: 'ようこそ大広間へ',
+        dialogue: [
+          'ようこそ、小さな扉の向こうの「大広間」へ。外から見たより、ずっと広いだろう?',
+          'この広間は扉とつながっているだけ。空も地面もない、不思議な部屋さ。',
+          '玄関の光る扉をくぐれば、もとの昼の世界へ戻れるよ。',
         ],
       },
     ],

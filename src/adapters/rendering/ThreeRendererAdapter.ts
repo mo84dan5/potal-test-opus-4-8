@@ -5,7 +5,15 @@ import { Portal } from '../../domain/entities/Portal';
 import { World } from '../../domain/entities/World';
 import { HeightField } from '../../domain/values/Terrain';
 import { Vec3 } from '../../domain/values/Vec3';
-import { HOUSE, HouseSpec, WORLD_DEFS, WorldObjectSpec } from '../../config/worldContent';
+import {
+  HOUSE,
+  HouseSpec,
+  PORTAL_HOUSE,
+  PortalHouseSpec,
+  RoomSpec,
+  WORLD_DEFS,
+  WorldObjectSpec,
+} from '../../config/worldContent';
 
 export interface ScreenPoint {
   x: number;
@@ -200,9 +208,14 @@ export class ThreeRendererAdapter {
   private buildWorld(world: World, size: THREE.Vector2): WorldView {
     const scene = new THREE.Scene();
     const def = WORLD_DEFS.find((d) => d.id === world.id);
-    this.buildEnvironment(scene, world.id, world.terrain);
+    if (def?.interior && def.room) {
+      this.buildRoom(scene, def.room);
+    } else {
+      this.buildEnvironment(scene, world.id, world.terrain);
+    }
     if (def) this.buildObjects(scene, def.objects, world.terrain);
     if (def?.house) this.buildHouse(scene, def.house, world.terrain);
+    if (def?.portalHouse) this.buildPortalHouse(scene, def.portalHouse, world.terrain);
 
     const npcMeshes = new Map<string, THREE.Group>();
     world.npcs.forEach((npc, i) => {
@@ -297,6 +310,105 @@ export class ThreeRendererAdapter {
         break;
       }
     }
+  }
+
+  /** 室内ワールド: 床・天井・四方の壁・暖色光で囲まれた広い部屋を描く(屋外環境なし) */
+  private buildRoom(scene: THREE.Scene, room: RoomSpec): void {
+    scene.background = new THREE.Color(0x241d2e);
+    scene.add(new THREE.HemisphereLight(0xfff0d8, 0x2a2030, 0.85));
+    const lamp = new THREE.PointLight(0xffe6b8, 1.3, 0, 0); // distance=0 → 減衰なし
+    lamp.position.set(0, room.height - 0.6, 0);
+    scene.add(lamp);
+
+    const w = room.width / 2;
+    const d = room.depth / 2;
+    const h = room.height;
+    const t = 0.3; // 壁の厚さ
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(room.width, room.depth),
+      new THREE.MeshLambertMaterial({ color: 0x6b5a45 }),
+    );
+    floor.rotateX(-Math.PI / 2);
+    scene.add(floor);
+
+    const ceiling = new THREE.Mesh(
+      new THREE.PlaneGeometry(room.width, room.depth),
+      new THREE.MeshLambertMaterial({ color: 0x342c44, side: THREE.DoubleSide }),
+    );
+    ceiling.rotateX(Math.PI / 2);
+    ceiling.position.y = h;
+    scene.add(ceiling);
+
+    const wallMat = new THREE.MeshLambertMaterial({
+      color: 0xcdbfa6,
+      side: THREE.DoubleSide,
+    });
+    const wall = (sx: number, sz: number, x: number, z: number): void => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, h, sz), wallMat);
+      m.position.set(x, h / 2, z);
+      scene.add(m);
+    };
+    wall(room.width, t, 0, -d); // 玄関壁(-Z)
+    wall(room.width, t, 0, d); // 奥壁(+Z)
+    wall(t, room.depth, -w, 0); // 左壁
+    wall(t, room.depth, w, 0); // 右壁
+  }
+
+  /**
+   * 室内ワールド型の家の外観小屋。ドア(+Z 面の中央)はポータル面が嵌まるよう全高で開口する。
+   * 物理的な内部は持たず、ドアのポータルを横切ると室内ワールドへ飛ぶ。
+   */
+  private buildPortalHouse(
+    scene: THREE.Scene,
+    spec: PortalHouseSpec,
+    terrain: HeightField,
+  ): void {
+    const group = new THREE.Group();
+    group.position.set(spec.x, terrain.heightAt(spec.x, spec.z), spec.z);
+
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0xe8d8b0 });
+    const trimMat = new THREE.MeshLambertMaterial({ color: 0x6b4a2f });
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0xb08968 });
+    const w = PORTAL_HOUSE.width / 2;
+    const d = PORTAL_HOUSE.depth / 2;
+    const h = PORTAL_HOUSE.wallHeight;
+    const dw = PORTAL_HOUSE.doorWidth / 2;
+    const t = 0.18;
+    const box = (
+      sx: number, sy: number, sz: number,
+      x: number, y: number, z: number,
+      mat: THREE.Material = wallMat,
+    ): void => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
+      m.position.set(x, y, z);
+      group.add(m);
+    };
+
+    // 床・背面壁・側面壁
+    box(PORTAL_HOUSE.width, 0.12, PORTAL_HOUSE.depth, 0, 0.06, 0, floorMat);
+    box(PORTAL_HOUSE.width, h, t, 0, h / 2, -d);
+    box(t, h, PORTAL_HOUSE.depth, -w, h / 2, 0);
+    box(t, h, PORTAL_HOUSE.depth, w, h / 2, 0);
+
+    // 前面壁(中央は全高のドア開口=ポータル)。左右の壁柱のみ
+    box(w - dw, h, t, -(dw + (w - dw) / 2), h / 2, d);
+    box(w - dw, h, t, dw + (w - dw) / 2, h / 2, d);
+    // ドア枠
+    box(0.12, h, t + 0.06, -dw, h / 2, d, trimMat);
+    box(0.12, h, t + 0.06, dw, h / 2, d, trimMat);
+    box(PORTAL_HOUSE.doorWidth + 0.24, 0.12, t + 0.06, 0, h, d, trimMat);
+
+    // 屋根(四角錐)
+    const roof = new THREE.Mesh(
+      new THREE.ConeGeometry(Math.hypot(w, d) + 0.5, 1.8, 4),
+      new THREE.MeshLambertMaterial({ color: 0x6a8caf }),
+    );
+    roof.rotation.y = Math.PI / 4;
+    roof.position.y = h + 0.9;
+    group.add(roof);
+
+    scene.add(group);
   }
 
   private addGround(
