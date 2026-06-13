@@ -36,6 +36,12 @@ export interface PortalSpec {
   targetPortalId: string;
   /** 枠の発光色 */
   frameColor: number;
+  /**
+   * ポータルの種別。
+   * - 'gate'(既定): 歩いて横切ると瞬間移動する透過ポータル(世界間の門)
+   * - 'door': 閉じた扉として描画され、移動では入れず、タップで入室する
+   */
+  kind?: 'gate' | 'door';
 }
 
 export interface NpcSpec {
@@ -248,8 +254,8 @@ export const WORLD_DEFS: WorldDef[] = [
     portals: [
       { id: 'day-night', x: 0, z: -6, yaw: 0, targetWorldId: 'night', targetPortalId: 'night-day', frameColor: 0x7df9ff },
       { id: 'day-snow', x: 12, z: 2, yaw: -Math.PI / 2, targetWorldId: 'snow', targetPortalId: 'snow-day', frameColor: 0x9adcff },
-      // 室内ワールド型の家のドア(小屋 (10,-13) の +Z 面中央 = z -13 + depth/2)
-      { id: 'day-grandhall', x: 10, z: -10.5, yaw: 0, targetWorldId: 'grand-hall', targetPortalId: 'grandhall-day', frameColor: 0xffd24d },
+      // 室内ワールド型の家の扉(小屋 (10,-13) の +Z 面中央 = z -13 + depth/2)。タップで入室する固い扉
+      { id: 'day-grandhall', x: 10, z: -10.5, yaw: 0, targetWorldId: 'grand-hall', targetPortalId: 'grandhall-day', frameColor: 0xffd24d, kind: 'door' },
     ],
     npcs: [
       {
@@ -412,8 +418,8 @@ export const WORLD_DEFS: WorldDef[] = [
       { kind: 'crystal', x: 0, z: 2, size: 3.0, color: 0xffe08a, name: '中央の結晶', anchorY: 3.4, collisionRadius: 0.6, bubble: 'これは中央の結晶です', dialogue: ['ホールの中央で淡く輝く大きな結晶だ。', '見上げるほど高い天井をほのかに照らしている。'] },
     ],
     portals: [
-      // 玄関(戻り)ポータル。玄関壁(z=-12)の手前に立ち、法線は +Z(室内向き)
-      { id: 'grandhall-day', x: 0, z: -11, yaw: 0, targetWorldId: 'day', targetPortalId: 'day-grandhall', frameColor: 0xffd24d },
+      // 玄関(戻り)扉。玄関壁(z=-12)の手前に立ち、法線は +Z(室内向き)。タップで昼の世界へ出る
+      { id: 'grandhall-day', x: 0, z: -11, yaw: 0, targetWorldId: 'day', targetPortalId: 'day-grandhall', frameColor: 0xffd24d, kind: 'door' },
     ],
     npcs: [
       {

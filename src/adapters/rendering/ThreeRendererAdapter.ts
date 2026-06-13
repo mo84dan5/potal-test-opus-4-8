@@ -113,6 +113,7 @@ export class ThreeRendererAdapter {
 
     // 現在ワールドの各ポータルについて、接続先ワールドをレンダーターゲットへ描画する
     world.portals.forEach((portal, index) => {
+      if (portal.isDoor) return; // 扉は透過しない(接続先を描かない)
       const rt = this.renderTargetPool[index];
       const targetWorld = this.session.getWorld(portal.targetWorldId);
       const targetPortal = targetWorld.getPortal(portal.targetPortalId);
@@ -232,6 +233,11 @@ export class ThreeRendererAdapter {
     for (const portal of world.portals) {
       const frameColor =
         def?.portals.find((p) => p.id === portal.id)?.frameColor ?? 0xffffff;
+      if (portal.isDoor) {
+        // 扉は閉じた扉として描画する(透過面・RT描画なし)
+        this.buildDoorMesh(scene, portal, frameColor);
+        continue;
+      }
       const material = new THREE.ShaderMaterial({
         uniforms: {
           portalTexture: { value: null },
@@ -668,6 +674,60 @@ export class ThreeRendererAdapter {
 
     scene.add(group);
     return surface;
+  }
+
+  /** 扉(閉じた観音開き+枠+取っ手)を描く。透過しない=向こう側は見えない */
+  private buildDoorMesh(
+    scene: THREE.Scene,
+    portal: Portal,
+    frameColor: number,
+  ): void {
+    const group = new THREE.Group();
+    group.position.set(portal.position.x, 0, portal.position.z);
+    group.rotation.y = portal.yaw;
+
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: frameColor,
+      emissive: frameColor,
+      emissiveIntensity: 0.4,
+      roughness: 0.5,
+    });
+    const w = portal.halfWidth * 2;
+    const h = portal.height;
+    const t = 0.22; // 枠の太さ
+    const left = new THREE.Mesh(new THREE.BoxGeometry(t, h + t, t), frameMat);
+    left.position.set(-portal.halfWidth - t / 2, (h + t) / 2, 0);
+    const right = left.clone();
+    right.position.x = portal.halfWidth + t / 2;
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(w + t * 2, t, t), frameMat);
+    lintel.position.set(0, h + t / 2, 0);
+    group.add(left, right, lintel);
+
+    // 閉じた観音開きの扉板2枚(中央でわずかに合わさる)
+    const doorMat = new THREE.MeshLambertMaterial({ color: 0x6b4a2f });
+    const panelW = portal.halfWidth - 0.06;
+    const panel = (x: number): THREE.Mesh => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(panelW, h - 0.1, 0.1), doorMat);
+      m.position.set(x, (h - 0.1) / 2, 0);
+      return m;
+    };
+    group.add(panel(-portal.halfWidth / 2), panel(portal.halfWidth / 2));
+
+    // 取っ手(中央で向き合う金色の球)
+    const knobMat = new THREE.MeshStandardMaterial({
+      color: 0xeacb6a,
+      emissive: 0x6a5520,
+      emissiveIntensity: 0.3,
+      roughness: 0.3,
+    });
+    const knob = (x: number): THREE.Mesh => {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), knobMat);
+      m.position.set(x, h * 0.45, 0.08);
+      return m;
+    };
+    group.add(knob(-0.18), knob(0.18));
+
+    scene.add(group);
   }
 }
 

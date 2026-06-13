@@ -82,3 +82,29 @@ describe('PortalTraversalService.traverse', () => {
     expect(back.z).toBeCloseTo(start.z);
   });
 });
+
+describe('PortalTraversalService.placeInFrontOf(扉のタップ入室)', () => {
+  it('接続先ポータルの正面(法線方向)へ offset だけ離して立たせ、室内を向く', () => {
+    // portalB は (10,0,20)・yaw=π/2 → 法線 +X
+    const player = new Player(new Vec3(0, 0, 0), new Vec3(1, 0, 1), 0.3, 0.2);
+    service.placeInFrontOf(player, portalB, 2);
+
+    expect(player.position.x).toBeCloseTo(12); // 10 + 法線(+X)*2
+    expect(player.position.z).toBeCloseTo(20);
+    // 法線方向(+X)を向く
+    expect(player.forward.x).toBeCloseTo(1);
+    expect(player.forward.z).toBeCloseTo(0);
+    // 速度はリセットされる
+    expect(player.velocity.x).toBe(0);
+    expect(player.velocity.z).toBe(0);
+    expect(player.desiredVelocity).toBeNull();
+  });
+
+  it('+Z向きの扉なら、その正面=+Z側(室内)へ出て +Z を向く', () => {
+    const door = new Portal('in-out', new Vec3(0, 0, -11), 0, 1.4, 3, 'out', 'out-in', true);
+    const player = new Player(new Vec3(5, 0, 5), Vec3.ZERO, 0, 0);
+    service.placeInFrontOf(player, door, 1.6);
+    expect(player.position.z).toBeCloseTo(-9.4); // -11 + 1.6
+    expect(player.forward.z).toBeCloseTo(1);
+  });
+});

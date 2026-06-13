@@ -74,6 +74,21 @@ describe('TickUseCase', () => {
     expect(session.currentWorldId).toBe('snow'); // p1(夜)ではなく p2 の接続先
   });
 
+  it('扉(isDoor)は歩いて面を横切っても遷移しない(入室はタップのみ)', () => {
+    const door = new Portal('day-door', new Vec3(0, 0, -6), 0, 1.4, 3, 'night', 'night-door', true);
+    const a = new World('day', '昼', [door]);
+    const b = new World('night', '夜', [
+      new Portal('night-door', new Vec3(0, 0, -6), 0, 1.4, 3, 'day', 'day-door', true),
+    ]);
+    const player = new Player(new Vec3(0, 0, -5.5), new Vec3(0, 0, -2), 0, 0);
+    const session = new GameSession([a, b], 'day', player);
+
+    const result = buildTick(session).execute(0.5); // 面 z=-6 を横切る動き
+
+    expect(result.traversed).toBe(false);
+    expect(session.currentWorldId).toBe('day');
+  });
+
   it('話しかけられているNPCは徘徊を停止し、会話が終わると再開する', () => {
     const npc = new Npc(
       'guide', '案内人',

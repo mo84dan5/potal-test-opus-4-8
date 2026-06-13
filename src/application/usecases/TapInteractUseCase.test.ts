@@ -123,3 +123,42 @@ describe('TapInteractUseCase', () => {
     expect(session.dialogueSpeaker).toBeNull();
   });
 });
+
+// --- 扉(タップ入室)---
+const buildDoorSession = (): GameSession => {
+  const door = new Portal('out-in', new Vec3(0, 0, -2), 0, 1.4, 3, 'in', 'in-out', true);
+  const out = new World('out', '外', [door], [
+    // 扉インタラクタブル(doorPortalId='out-in'、会話コメントなし)。プレイヤー前方(-Z)
+    new Interactable('it-door', '扉', new Vec3(0, 2.6, -2), 'タップで入る', [], 'out-in'),
+  ]);
+  const back = new Portal('in-out', new Vec3(0, 0, -11), 0, 1.4, 3, 'out', 'out-in', true);
+  const inWorld = new World('in', '中', [back]);
+  return new GameSession([out, inWorld], 'out', new Player(Vec3.ZERO, Vec3.ZERO, 0, 0));
+};
+
+describe('TapInteractUseCase(扉)', () => {
+  it('前方の扉をタップすると入室し(世界が変わり)、会話は開かない', () => {
+    const session = buildDoorSession();
+    const entered = new TapInteractUseCase(
+      session, new InteractionService(), INTERACT_RANGE, 0.5,
+    ).execute();
+
+    expect(entered).toBe(true);
+    expect(session.currentWorldId).toBe('in');
+    expect(session.dialogue).toBeNull();
+    // 接続先扉(in-out: (0,-11)・法線+Z)の正面=室内側(z>-11)に立つ
+    expect(session.player.position.z).toBeGreaterThan(-11);
+  });
+
+  it('背後の扉はタップしても入室しない', () => {
+    const session = buildDoorSession();
+    // プレイヤーを反転(yaw=π → forward +Z)させ、扉(-Z)を背後にする
+    session.player.yaw = Math.PI;
+    const entered = new TapInteractUseCase(
+      session, new InteractionService(), INTERACT_RANGE, 0.5,
+    ).execute();
+
+    expect(entered).toBe(false);
+    expect(session.currentWorldId).toBe('out');
+  });
+});

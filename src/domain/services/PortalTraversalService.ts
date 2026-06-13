@@ -31,6 +31,19 @@ export class PortalTraversalService {
     player.yaw = player.yaw + (to.yaw - from.yaw + Math.PI);
   }
 
+  /**
+   * 扉のタップ入室用。横断ではなく、接続先ポータル `to` の正面(法線方向=室内側)へ
+   * offset だけ離して立たせ、その世界(室内)を向かせる。速度はリセットする。
+   * y は呼び出し側で接続先地形へスナップする想定。
+   */
+  placeInFrontOf(player: Player, to: Portal, offset: number): void {
+    const n = to.normal;
+    player.position = to.position.add(n.scale(offset));
+    player.velocity = Vec3.ZERO;
+    player.desiredVelocity = null;
+    player.yaw = Math.atan2(-n.x, -n.z); // forward = n(室内を向く)
+  }
+
   mapPoint(p: Vec3, from: Portal, to: Portal): Vec3 {
     const local = p.sub(from.position).rotateY(-from.yaw);
     const flipped = new Vec3(-local.x, local.y, -local.z);

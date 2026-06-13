@@ -20,6 +20,13 @@ export class Portal {
     public readonly targetWorldId: string,
     /** 接続先ワールド内の対になるポータルのID */
     public readonly targetPortalId: string,
+    /**
+     * 扉か。true のとき:
+     * - 歩いて面を横切っても遷移しない(交差判定から除外)
+     * - 透過面ではなく閉じた扉として描画される
+     * - タップで入室する(扉コライダーで塞がれ通り抜け不可)
+     */
+    public readonly isDoor: boolean = false,
   ) {}
 
   /** 面の法線(水平) */

@@ -96,6 +96,15 @@ describe('WORLD_DEFS のポータル整合性', () => {
     }
   });
 
+  it('大広間の出入口(day-grandhall / grandhall-day)は扉(kind=door)である', () => {
+    const day = byId.get('day')!;
+    const hall = byId.get('grand-hall')!;
+    expect(day.portals.find((p) => p.id === 'day-grandhall')!.kind).toBe('door');
+    expect(hall.portals.find((p) => p.id === 'grandhall-day')!.kind).toBe('door');
+    // 世界間の門(gate)は従来通り kind 未指定(=透過ポータル)
+    expect(day.portals.find((p) => p.id === 'day-night')!.kind).toBeUndefined();
+  });
+
   it('portalHouse のドア位置(+Z面中央)にポータルが立っている', () => {
     for (const def of WORLD_DEFS) {
       if (!def.portalHouse) continue;

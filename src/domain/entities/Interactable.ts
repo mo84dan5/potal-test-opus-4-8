@@ -14,6 +14,11 @@ export class Interactable {
     public readonly bubbleText: string | null,
     /** タップ時にメッセージウィンドウで送るコメント列。空ならタップ反応なし */
     public readonly dialogue: readonly string[],
+    /**
+     * 扉インタラクタブルの場合、タップで入室するポータルのID(同ワールド内)。
+     * null なら通常のオブジェクト(会話/吹き出しのみ)。
+     */
+    public readonly doorPortalId: string | null = null,
   ) {}
 
   /** プレイヤー足元からの水平距離 */

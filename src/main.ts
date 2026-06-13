@@ -65,14 +65,27 @@ const toInteractables = (
       ),
   );
 
-const portalInteractable = (portal: Portal): Interactable =>
-  new Interactable(
+const DOOR_BUBBLE_ANCHOR_Y = 2.6;
+const portalInteractable = (portal: Portal): Interactable => {
+  if (portal.isDoor) {
+    // 扉: タップで入室(doorPortalId を持たせる)。会話コメントは持たない
+    return new Interactable(
+      `interact-${portal.id}`,
+      '扉',
+      portal.position.withY(DOOR_BUBBLE_ANCHOR_Y),
+      `タップで「${worldName(portal.targetWorldId)}」に入る`,
+      [],
+      portal.id,
+    );
+  }
+  return new Interactable(
     `interact-${portal.id}`,
     'ポータル',
     portal.position.withY(PORTAL_BUBBLE_ANCHOR_Y),
     `ポータルだ。「${worldName(portal.targetWorldId)}」へつながっている`,
     [],
   );
+};
 
 // 衝突体: オブジェクト + ポータル枠の左右柱(面は通過可能なまま)
 const toColliders = (specs: WorldObjectSpec[]): Collider[] =>
@@ -85,6 +98,21 @@ const portalPillarColliders = (portal: Portal): Collider[] => {
     { position: portal.position.add(t.scale(offset)), radius: PORTAL_PILLAR_RADIUS },
     { position: portal.position.add(t.scale(-offset)), radius: PORTAL_PILLAR_RADIUS },
   ];
+};
+
+// 扉(isDoor)の開口を塞ぐコライダー列。歩いて通り抜けられないようにする(入室はタップのみ)
+const DOOR_BLOCKER_RADIUS = 0.5;
+const doorBlockerColliders = (portal: Portal): Collider[] => {
+  if (!portal.isDoor) return [];
+  const colliders: Collider[] = [];
+  const half = portal.halfWidth + 0.6; // 開口より少し広く、両脇の壁コライダーと重ねる
+  for (let o = -half; o <= half + 1e-6; o += 0.5) {
+    colliders.push({
+      position: portal.position.add(portal.tangent.scale(o)),
+      radius: DOOR_BLOCKER_RADIUS,
+    });
+  }
+  return colliders;
 };
 
 const NPC_ANCHOR_Y = 2.0;
@@ -191,6 +219,7 @@ const buildWorld = (def: WorldDef): World => {
         PORTAL_HEIGHT,
         p.targetWorldId,
         p.targetPortalId,
+        p.kind === 'door',
       ),
   );
   const npcs = def.npcs.map((spec, i) => {
@@ -228,6 +257,7 @@ const buildWorld = (def: WorldDef): World => {
       ...portalHouseColliders(def),
       ...roomColliders(def),
       ...portals.flatMap(portalPillarColliders),
+      ...portals.flatMap(doorBlockerColliders),
       ...npcs.map((n) => n.collider),
     ],
     npcs,
@@ -251,6 +281,7 @@ const tapInteract = new TapInteractUseCase(
   interaction,
   INTERACT_RANGE,
   INTERACT_FRONT_DOT,
+  traversal,
 );
 const nearbyBubble = new NearbyBubbleUseCase(session, interaction, BUBBLE_RANGE);
 const tick = new TickUseCase(
@@ -278,7 +309,12 @@ const stickInput = new VirtualStickInputAdapter(renderer.canvas, {
   onStickEnd: () => stopMovement.execute(),
   onDash: (dx, dy) => applyDash.execute({ dx, dy }),
   onLook: (dx, dy) => applyLook.execute(dx, dy),
-  onTap: () => tapInteract.execute(),
+  onTap: () => {
+    // 扉タップで入室したら世界名表示を更新する
+    if (tapInteract.execute()) {
+      worldNameEl.textContent = session.currentWorld.name;
+    }
+  },
 });
 
 // --- 吹き出し・メッセージウィンドウのUI更新 ---

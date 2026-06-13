@@ -78,6 +78,7 @@ export class TickUseCase {
   private checkPortals(before: Vec3): TickResult {
     const player = this.session.player;
     for (const portal of this.session.currentWorld.portals) {
+      if (portal.isDoor) continue; // 扉は歩いて触れても遷移しない(タップ入室のみ)
       if (!this.traversal.hasCrossed(portal, before, player.position)) continue;
       const dest = this.session.getWorld(portal.targetWorldId);
       this.traversal.traverse(player, portal, dest.getPortal(portal.targetPortalId));
