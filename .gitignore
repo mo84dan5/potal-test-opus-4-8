@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# ローカルのClaude設定ディレクトリ(誤生成)。コミット禁止
+~/
