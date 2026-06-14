@@ -47,9 +47,13 @@ export class TapInteractUseCase {
     );
     if (!target) return false;
 
-    if (target.event !== null) {
+    // once イベントが完了済みなら開始せず、通常会話(dialogue)へ切り替える
+    const eventAvailable =
+      target.event !== null &&
+      !(target.event.once && this.session.completedEvents.has(target.event.id));
+    if (eventAvailable) {
       // イベント開始(以降のフレームで EventService が進行。操作は見回しのみに制限される)
-      this.session.activeEvent = new ActiveEvent(target.event);
+      this.session.activeEvent = new ActiveEvent(target.event!);
       this.session.eventActor = target instanceof Npc ? target : null; // 先導・帰宅する主役
       this.session.eventMessage = null;
       return false;
@@ -59,8 +63,10 @@ export class TapInteractUseCase {
       return this.enterDoor(target.doorPortalId);
     }
 
-    this.session.dialogue = new DialogueSession(target.dialogue);
-    this.session.dialogueSpeaker = target;
+    if (target.dialogue.length > 0) {
+      this.session.dialogue = new DialogueSession(target.dialogue);
+      this.session.dialogueSpeaker = target;
+    }
     return false;
   }
 

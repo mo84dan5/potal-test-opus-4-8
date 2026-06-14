@@ -374,9 +374,10 @@ export const WORLD_DEFS: WorldDef[] = [
         bubble: 'ついておいで(案内)', dialogue: [], eventId: 'day-guide',
       },
       {
-        // イベント: 話しかけると岩が動いて道が開く(day-rock)
+        // イベント: 話しかけると岩が動いて道が開く(day-rock)。完了後は通常会話に変わる
         x: -2, z: 9, name: '岩どかし', color: 0x9a7b3a, wanderRadius: 0,
-        bubble: '岩をどかすよ', dialogue: [], eventId: 'day-rock',
+        bubble: '岩をどかすよ', eventId: 'day-rock',
+        dialogue: ['岩はもうどかしたよ。', 'もう向こうへ通れるだろう?'],
       },
     ],
     house: { x: -10, z: -13 },
@@ -578,9 +579,10 @@ export const EVENTS: Record<string, GameEvent> = {
       { kind: 'actorHome' },
     ],
   },
-  // 岩どかし: タップすると岩が動いて道が開く
+  // 岩どかし: タップすると岩が動いて道が開く(一度きり。以後は通常会話に変わる)
   'day-rock': {
     id: 'day-rock',
+    once: true,
     steps: [
       { kind: 'say', text: 'この岩、どかしてあげよう。', duration: 2 },
       { kind: 'moveProp', propId: 'day-rock', toX: 1, toZ: 7, duration: 2.5 },

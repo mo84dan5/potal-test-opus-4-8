@@ -7,6 +7,7 @@ import { Portal } from '../../domain/entities/Portal';
 import { World } from '../../domain/entities/World';
 import { Vec3 } from '../../domain/values/Vec3';
 import { InteractionService } from '../../domain/services/InteractionService';
+import { GameEvent } from '../../domain/values/EventScript';
 import { INTERACT_RANGE } from '../../config/worldContent';
 import { TapInteractUseCase } from './TapInteractUseCase';
 
@@ -135,6 +136,32 @@ const buildDoorSession = (): GameSession => {
   const inWorld = new World('in', '中', [back]);
   return new GameSession([out, inWorld], 'out', new Player(Vec3.ZERO, Vec3.ZERO, 0, 0));
 };
+
+describe('TapInteractUseCase(イベント)', () => {
+  const onceEvent: GameEvent = {
+    id: 'rock',
+    once: true,
+    steps: [{ kind: 'say', text: 'どかすよ', duration: 1 }],
+  };
+  const makeRockNpc = () =>
+    new Interactable('r', '岩どかし', new Vec3(0, 1, -2), 'b', ['岩はもうどかしたよ。'], null, onceEvent);
+
+  it('未完了の once イベントはタップで開始する(会話は開かない)', () => {
+    const session = buildSession([makeRockNpc()]);
+    new TapInteractUseCase(session, new InteractionService(), INTERACT_RANGE).execute();
+    expect(session.activeEvent).not.toBeNull();
+    expect(session.dialogue).toBeNull();
+  });
+
+  it('完了済みの once イベントは再開せず、通常会話に切り替わる', () => {
+    const session = buildSession([makeRockNpc()]);
+    session.completedEvents.add('rock');
+    new TapInteractUseCase(session, new InteractionService(), INTERACT_RANGE).execute();
+    expect(session.activeEvent).toBeNull(); // イベントは始まらない
+    expect(session.dialogue).not.toBeNull(); // 会話が開く
+    expect(session.dialogue!.currentLine).toBe('岩はもうどかしたよ。');
+  });
+});
 
 describe('TapInteractUseCase(扉)', () => {
   it('前方の扉をタップすると入室し(世界が変わり)、会話は開かない', () => {

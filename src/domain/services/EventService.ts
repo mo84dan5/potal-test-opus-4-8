@@ -156,6 +156,7 @@ export class EventService {
     session.eventMessage = null;
     if (active.done) {
       this.movement.halt(session.player);
+      session.completedEvents.add(active.event.id); // once イベントの再開抑止
       session.activeEvent = null;
       session.eventActor = null;
     }

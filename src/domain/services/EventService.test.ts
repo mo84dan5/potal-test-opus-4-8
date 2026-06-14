@@ -39,6 +39,7 @@ describe('EventService', () => {
     svc.tick(session, 0.6); // 累計1.1 >= 1 → 最終ステップ完了
     expect(session.activeEvent).toBeNull();
     expect(session.eventMessage).toBeNull();
+    expect(session.completedEvents.has('e')).toBe(true); // 完了IDを記録
   });
 
   it('walkTo: 目的地が遠ければ目的地方向へ desiredVelocity を設定する', () => {

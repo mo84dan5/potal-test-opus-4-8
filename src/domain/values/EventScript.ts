@@ -19,6 +19,8 @@ export type EventStep =
 export interface GameEvent {
   readonly id: string;
   readonly steps: readonly EventStep[];
+  /** true なら一度きり。完了後は再開せず、対象の通常会話(dialogue)に切り替わる */
+  readonly once?: boolean;
 }
 
 /** 進行中イベントの状態(現ステップ・経過時間・moveProp の開始位置を保持) */

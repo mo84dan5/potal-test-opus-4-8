@@ -17,6 +17,8 @@ export class GameSession {
   public eventMessage: string | null = null;
   /** イベントの主役NPC(タップした相手)。escort/actorHome で先導・帰宅する */
   public eventActor: Npc | null = null;
+  /** 完了したイベントのID集合(once イベントの再開抑止に使う) */
+  public readonly completedEvents = new Set<string>();
 
   private readonly worlds: Map<string, World>;
 
