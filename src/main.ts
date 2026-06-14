@@ -1,4 +1,5 @@
 import { GameSession } from './domain/entities/GameSession';
+import { EventProp } from './domain/entities/EventProp';
 import { Interactable } from './domain/entities/Interactable';
 import { Npc } from './domain/entities/Npc';
 import { Player } from './domain/entities/Player';
@@ -10,6 +11,7 @@ import { InteractionService } from './domain/services/InteractionService';
 import { MovementService } from './domain/services/MovementService';
 import { NpcWanderService } from './domain/services/NpcWanderService';
 import { PortalTraversalService } from './domain/services/PortalTraversalService';
+import { EventService } from './domain/services/EventService';
 import { Collider } from './domain/values/Collider';
 import { CliffField, HeightField, HillyTerrain, TwoFloorField } from './domain/values/Terrain';
 import {
@@ -30,6 +32,7 @@ import {
   PORTAL_PILLAR_RADIUS,
   portalHouseWallColliderSpots,
   CLIFF,
+  EVENTS,
   ROOM_WALL_COLLIDER_RADIUS,
   roomWallColliderSpots,
   TWO_FLOOR,
@@ -254,6 +257,7 @@ const buildWorld = (def: WorldDef): World => {
       new Vec3(spec.x, 0, spec.z),
       spec.wanderRadius,
       def.id.charCodeAt(0) * 7919 + i * 104729, // ワールド・個体ごとに異なる決定的シード
+      spec.eventId ? EVENTS[spec.eventId] : null,
     );
     if (spec.wanderRadius <= 0) {
       // 静止NPCは指定の向き、なければ広場の中心(原点)を向いて立つ
@@ -262,6 +266,9 @@ const buildWorld = (def: WorldDef): World => {
     npc.moveTo(spec.x, spec.z, terrain.heightAt(spec.x, spec.z)); // 初期位置を地形へスナップ
     return npc;
   });
+  const props = (def.props ?? []).map(
+    (p) => new EventProp(p.id, new Vec3(p.x, 0, p.z), p.collisionRadius, p.size),
+  );
   return new World(
     def.id,
     def.name,
@@ -284,6 +291,7 @@ const buildWorld = (def: WorldDef): World => {
     ],
     npcs,
     terrain,
+    props,
   );
 };
 
@@ -296,6 +304,7 @@ const traversal = new PortalTraversalService();
 const interaction = new InteractionService();
 const applyStick = new ApplyStickUseCase(session);
 const startGlide = new StartGlideUseCase(session);
+const eventService = new EventService(movement);
 const applyDash = new ApplyDashUseCase(session, movement);
 const applyLook = new ApplyLookUseCase(session);
 const stopMovement = new StopMovementUseCase(session, movement);
@@ -339,10 +348,18 @@ viewBtn.addEventListener('click', () => {
 });
 
 const stickInput = new VirtualStickInputAdapter(renderer.canvas, {
-  onStickEnd: () => stopMovement.execute(),
-  onDash: (dx, dy) => applyDash.execute({ dx, dy }),
-  onLook: (dx, dy) => applyLook.execute(dx, dy),
+  // イベント中は見回し(onLook)以外の操作を受け付けない
+  onStickEnd: () => {
+    if (session.activeEvent) return;
+    stopMovement.execute();
+  },
+  onDash: (dx, dy) => {
+    if (session.activeEvent) return;
+    applyDash.execute({ dx, dy });
+  },
+  onLook: (dx, dy) => applyLook.execute(dx, dy), // 見回しはイベント中も可
   onTap: () => {
+    if (session.activeEvent) return;
     // 落下中(滞空中)のタップは滑空開始に使い、会話/扉は発火させない
     if (startGlide.execute()) return;
     // 扉タップで入室したら世界名表示を更新する
@@ -351,16 +368,24 @@ const stickInput = new VirtualStickInputAdapter(renderer.canvas, {
     }
   },
   // 2本目の指の接地: 落下中なら滑空開始(移動スティックを押したまま起動できる)
-  onSecondaryTouch: () => startGlide.execute(),
+  onSecondaryTouch: () => {
+    if (session.activeEvent) return;
+    startGlide.execute();
+  },
 });
 
 // --- 吹き出し・メッセージウィンドウのUI更新 ---
 function updateInteractionUi(): void {
-  if (session.dialogue) {
+  if (session.eventMessage) {
+    // イベント中のメッセージ(タップ送りではないので「タップで進む」表示は隠す)
+    dialogTextEl!.textContent = session.eventMessage;
+    dialogEl!.classList.add('visible', 'event');
+  } else if (session.dialogue) {
     dialogTextEl!.textContent = session.dialogue.currentLine;
     dialogEl!.classList.add('visible');
+    dialogEl!.classList.remove('event');
   } else {
-    dialogEl!.classList.remove('visible');
+    dialogEl!.classList.remove('visible', 'event');
   }
 
   const target = nearbyBubble.execute();
@@ -385,7 +410,12 @@ function frame(now: number): void {
   const dt = Math.min((now - lastTime) / 1000, 1 / 30); // タブ復帰時の暴走防止
   lastTime = now;
 
-  applyStick.execute(stickInput.getStick());
+  if (session.activeEvent) {
+    // イベント進行(walkTo は desiredVelocity を設定、moveProp はプロップを動かす)
+    eventService.tick(session, dt);
+  } else {
+    applyStick.execute(stickInput.getStick());
+  }
   const result = tick.execute(dt);
   if (result.traversed) {
     worldNameEl!.textContent = session.currentWorld.name;

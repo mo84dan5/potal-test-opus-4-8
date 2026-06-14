@@ -1,4 +1,5 @@
 import { Vec3 } from '../values/Vec3';
+import { GameEvent } from '../values/EventScript';
 import { Interactable } from './Interactable';
 
 /**
@@ -33,8 +34,10 @@ export class Npc extends Interactable {
     /** 徘徊半径 [m] */
     public readonly wanderRadius: number,
     seed = 1,
+    /** タップで開始するイベント(なければ null) */
+    event: GameEvent | null = null,
   ) {
-    super(id, name, spawn.withY(anchorY), bubbleText, dialogue);
+    super(id, name, spawn.withY(anchorY), bubbleText, dialogue, null, event);
     this.targetX = spawn.x;
     this.targetZ = spawn.z;
     this.rand = createSeededRandom(seed);

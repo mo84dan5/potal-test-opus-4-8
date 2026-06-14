@@ -1,4 +1,5 @@
 import { Vec3 } from '../values/Vec3';
+import { GameEvent } from '../values/EventScript';
 
 /**
  * ワールド内のインタラクト対象オブジェクト。
@@ -19,6 +20,8 @@ export class Interactable {
      * null なら通常のオブジェクト(会話/吹き出しのみ)。
      */
     public readonly doorPortalId: string | null = null,
+    /** タップで開始するイベント。null ならイベントなし */
+    public readonly event: GameEvent | null = null,
   ) {}
 
   /** プレイヤー足元からの水平距離 */

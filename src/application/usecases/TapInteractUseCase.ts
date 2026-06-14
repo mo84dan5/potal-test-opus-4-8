@@ -2,6 +2,7 @@ import { DialogueSession } from '../../domain/entities/DialogueSession';
 import { GameSession } from '../../domain/entities/GameSession';
 import { InteractionService } from '../../domain/services/InteractionService';
 import { PortalTraversalService } from '../../domain/services/PortalTraversalService';
+import { ActiveEvent } from '../../domain/values/EventScript';
 
 /** 扉タップ入室時に、接続先の扉の正面(室内側)へ立たせる距離 [m] */
 export const DOOR_ENTRY_OFFSET = 1.6;
@@ -36,14 +37,21 @@ export class TapInteractUseCase {
     const target = this.interaction.nearestInFrontWithin(
       this.session.player.position,
       this.session.player.forward,
-      // 会話できる対象(コメントあり)と扉(doorPortalId あり)をタップ候補にする
+      // 会話できる対象(コメントあり)・扉(doorPortalId)・イベント(event)をタップ候補にする
       this.session.currentWorld.interactables.filter(
-        (i) => i.dialogue.length > 0 || i.doorPortalId !== null,
+        (i) => i.dialogue.length > 0 || i.doorPortalId !== null || i.event !== null,
       ),
       this.interactRange,
       this.frontMinDot,
     );
     if (!target) return false;
+
+    if (target.event !== null) {
+      // イベント開始(以降のフレームで EventService が進行。操作は見回しのみに制限される)
+      this.session.activeEvent = new ActiveEvent(target.event);
+      this.session.eventMessage = null;
+      return false;
+    }
 
     if (target.doorPortalId !== null) {
       return this.enterDoor(target.doorPortalId);

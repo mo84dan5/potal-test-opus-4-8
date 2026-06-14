@@ -6,6 +6,8 @@
  * ワールド接続グラフ:
  *   雪の世界 ⇄ 昼の世界 ⇄ 夜の世界 ⇄ 黄昏の遺跡
  */
+import { GameEvent } from '../domain/values/EventScript';
+
 export interface WorldObjectSpec {
   kind: 'tree' | 'rock' | 'crystal' | 'ice' | 'pillar';
   x: number;
@@ -58,6 +60,20 @@ export interface NpcSpec {
   bubble: string;
   /** タップ時の世界の説明 */
   dialogue: string[];
+  /** タップで開始するイベントのID(EVENTS のキー)。指定時は会話の代わりにイベントが起きる */
+  eventId?: string;
+}
+
+/** イベントで動かせるプロップ(岩など)の定義 */
+export interface PropSpec {
+  /** イベントから参照するID(ワールド内で一意) */
+  id: string;
+  x: number;
+  z: number;
+  /** 見た目の大きさ [m] */
+  size: number;
+  /** 衝突半径 [m] */
+  collisionRadius: number;
 }
 
 /** 家のワールド内位置(ドアは +Z 向き) */
@@ -258,6 +274,8 @@ export interface WorldDef {
   house?: HouseSpec;
   /** よじ登れる崖(メサ)の中心位置。寸法は CLIFF */
   cliff?: { x: number; z: number };
+  /** イベントで動かせるプロップ(岩など) */
+  props?: PropSpec[];
   /** 室内ワールド型の家(外観の小屋)。複数可。各ドアのポータルで room ワールドへ飛ぶ */
   portalHouses?: PortalHouseSpec[];
   /** このワールドが室内(囲まれた部屋)である場合の寸法。指定時は屋外環境を描かない */
@@ -350,6 +368,16 @@ export const WORLD_DEFS: WorldDef[] = [
           'テーブルは昨日ふいたばかり。窓からの眺めも自慢なんだ。ゆっくりしていって。',
         ],
       },
+      {
+        // イベント: 話しかけると崖の前まで実際に歩いて案内する(day-guide)
+        x: 6, z: 3, name: '案内役', color: 0x3aa0a0, wanderRadius: 0,
+        bubble: 'ついておいで(案内)', dialogue: [], eventId: 'day-guide',
+      },
+      {
+        // イベント: 話しかけると岩が動いて道が開く(day-rock)
+        x: -2, z: 9, name: '岩どかし', color: 0x9a7b3a, wanderRadius: 0,
+        bubble: '岩をどかすよ', dialogue: [], eventId: 'day-rock',
+      },
     ],
     house: { x: -10, z: -13 },
     // 入ると別の室内ワールドへ飛ぶ小屋(ドアは +Z 向き)。大広間と2階建ての家の2棟
@@ -358,6 +386,8 @@ export const WORLD_DEFS: WorldDef[] = [
       { x: -16, z: -2 }, // 2階建ての家(two-floor-house)
     ],
     cliff: { x: 16, z: 16 },
+    // イベントで動かせる岩(day-rock イベントで (1,7) へ動く)
+    props: [{ id: 'day-rock', x: -2, z: 7, size: 0.9, collisionRadius: 1.0 }],
   },
   {
     id: 'night',
@@ -532,6 +562,31 @@ export const WORLD_DEFS: WorldDef[] = [
     ],
   },
 ];
+
+/**
+ * イベント定義レジストリ。NpcSpec.eventId から参照する。
+ * walkTo は主人公の自動歩行、moveProp は可動プロップ(World.props)の移動。
+ */
+export const EVENTS: Record<string, GameEvent> = {
+  // 案内役: タップすると主人公を崖の前まで実際に歩いて連れて行く
+  'day-guide': {
+    id: 'day-guide',
+    steps: [
+      { kind: 'say', text: 'ついておいで。いい場所へ案内するよ。', duration: 2.5 },
+      { kind: 'walkTo', x: 12, z: 12 },
+      { kind: 'say', text: 'ここが崖だ。登ってみるといい。', duration: 3 },
+    ],
+  },
+  // 岩どかし: タップすると岩が動いて道が開く
+  'day-rock': {
+    id: 'day-rock',
+    steps: [
+      { kind: 'say', text: 'この岩、どかしてあげよう。', duration: 2 },
+      { kind: 'moveProp', propId: 'day-rock', toX: 1, toZ: 7, duration: 2.5 },
+      { kind: 'say', text: 'さあ、通れるようになったよ。', duration: 2.5 },
+    ],
+  },
+};
 
 /** ポータルの吹き出しのアンカー高さ */
 export const PORTAL_BUBBLE_ANCHOR_Y = 3.6;

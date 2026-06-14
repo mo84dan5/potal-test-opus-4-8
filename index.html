@@ -214,6 +214,10 @@
       #dialog.visible {
         display: block;
       }
+      /* イベント中はタップ送りではないので「タップで進む」表示を隠す */
+      #dialog.event .next {
+        display: none;
+      }
       #dialog .next {
         margin-top: 6px;
         text-align: right;

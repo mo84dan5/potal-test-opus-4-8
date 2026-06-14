@@ -29,8 +29,12 @@ export class TickUseCase {
     const before = player.position;
 
     this.movement.tick(player, dt, currentWorld.terrain);
-    // 押し出し後の位置でポータル判定する(押し戻されたフレームの誤通過を防ぐ)
-    this.collision.resolve(player, currentWorld.colliders);
+    // 押し出し後の位置でポータル判定する(押し戻されたフレームの誤通過を防ぐ)。
+    // 可動プロップ(岩など)のコライダーも現在位置で含める
+    const colliders = currentWorld.props.length
+      ? [...currentWorld.colliders, ...currentWorld.props.map((p) => p.collider)]
+      : currentWorld.colliders;
+    this.collision.resolve(player, colliders);
     // 押し出しで足元がずれた場合も床へ再スナップ(多層床対応。dt=0 で落下は進めない)
     player.position = player.position.withY(
       this.movement.floorY(
@@ -82,6 +86,8 @@ export class TickUseCase {
   }
 
   private checkPortals(before: Vec3): TickResult {
+    // イベント中の自動歩行が門を誤って通過しないようにスキップ
+    if (this.session.activeEvent) return { traversed: false };
     const player = this.session.player;
     for (const portal of this.session.currentWorld.portals) {
       if (portal.isDoor) continue; // 扉は歩いて触れても遷移しない(タップ入室のみ)

@@ -2,6 +2,7 @@ import { DialogueSession } from './DialogueSession';
 import { Interactable } from './Interactable';
 import { Player } from './Player';
 import { World } from './World';
+import { ActiveEvent } from '../values/EventScript';
 
 /** ゲーム全体の状態を束ねる集約ルート */
 export class GameSession {
@@ -9,6 +10,10 @@ export class GameSession {
   public dialogue: DialogueSession | null = null;
   /** 会話中の相手(NPCなら徘徊を停止する)。ウィンドウを閉じたら null */
   public dialogueSpeaker: Interactable | null = null;
+  /** 進行中のイベント。null なら通常操作。進行中は見回し以外の操作を止める */
+  public activeEvent: ActiveEvent | null = null;
+  /** イベント中に表示するメッセージ。null なら非表示 */
+  public eventMessage: string | null = null;
 
   private readonly worlds: Map<string, World>;
 

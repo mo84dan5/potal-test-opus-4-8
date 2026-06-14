@@ -36,6 +36,8 @@ interface WorldView {
   portalMaterials: Map<string, THREE.ShaderMaterial>;
   /** NPC ID → メッシュ(毎フレーム位置・向きを反映) */
   npcMeshes: Map<string, THREE.Group>;
+  /** プロップ ID → メッシュ(イベントで動くので毎フレーム位置を反映) */
+  propMeshes: Map<string, THREE.Mesh>;
 }
 
 const PORTAL_VERTEX_SHADER = /* glsl */ `
@@ -133,6 +135,7 @@ export class ThreeRendererAdapter {
     const view = this.viewOf(world.id);
     this.syncCamera(this.session.player, view.scene, dt);
     this.syncNpcs();
+    this.syncProps();
     this.syncAvatar(view.scene);
 
     // 現在ワールドの各ポータルについて、接続先ワールドをレンダーターゲットへ描画する
@@ -196,6 +199,20 @@ export class ThreeRendererAdapter {
         const feet = npc.feet;
         mesh.position.set(feet.x, feet.y, feet.z);
         mesh.rotation.y = npc.yaw;
+      }
+    }
+  }
+
+  /** 全ワールドのプロップ(岩など)メッシュへ現在位置を反映(イベントで動く) */
+  private syncProps(): void {
+    for (const world of this.session.allWorlds) {
+      const view = this.views.get(world.id);
+      if (!view) continue;
+      for (const prop of world.props) {
+        const mesh = view.propMeshes.get(prop.id);
+        if (!mesh) continue;
+        const groundY = world.terrain.heightAt(prop.position.x, prop.position.z);
+        mesh.position.set(prop.position.x, groundY + prop.size * 0.6, prop.position.z);
       }
     }
   }
@@ -324,7 +341,16 @@ export class ThreeRendererAdapter {
       portalSurfaces.set(portal.id, surface);
       portalMaterials.set(portal.id, material);
     }
-    return { scene, portalSurfaces, portalMaterials, npcMeshes };
+
+    // イベントで動くプロップ(岩)。位置は syncProps で毎フレーム反映
+    const propMeshes = new Map<string, THREE.Mesh>();
+    const propMat = new THREE.MeshLambertMaterial({ color: 0x9b9b8f });
+    for (const prop of world.props) {
+      const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(prop.size), propMat);
+      scene.add(mesh);
+      propMeshes.set(prop.id, mesh);
+    }
+    return { scene, portalSurfaces, portalMaterials, npcMeshes, propMeshes };
   }
 
   private buildEnvironment(
