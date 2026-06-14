@@ -46,6 +46,8 @@ export class SaveService {
     session.eventMessage = null;
     session.dialogue = null;
     session.dialogueSpeaker = null;
+    session.choice = null;
+    session.activeBattle = null;
 
     // フラグ・完了イベント
     session.flags.clear();

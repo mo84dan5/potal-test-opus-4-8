@@ -16,6 +16,11 @@ import { SaveService } from './domain/services/SaveService';
 import { systemClock } from './domain/values/Clock';
 import { Base64JsonSnapshotCodec } from './adapters/persistence/Base64JsonSnapshotCodec';
 import { PngSaveImageCodec } from './adapters/persistence/PngSaveImageCodec';
+import { BattleService } from './domain/services/BattleService';
+import { BattleSession } from './domain/entities/BattleSession';
+import { ChoicePrompt } from './domain/values/Choice';
+import { BattleOverlayAdapter } from './adapters/ui/BattleOverlayAdapter';
+import { ChoiceOverlayAdapter } from './adapters/ui/ChoiceOverlayAdapter';
 import { Collider } from './domain/values/Collider';
 import { CliffField, HeightField, HillyTerrain, TwoFloorField } from './domain/values/Terrain';
 import {
@@ -37,6 +42,7 @@ import {
   portalHouseWallColliderSpots,
   CLIFF,
   EVENTS,
+  BATTLES,
   ROOM_WALL_COLLIDER_RADIUS,
   roomWallColliderSpots,
   TWO_FLOOR,
@@ -251,6 +257,16 @@ const buildWorld = (def: WorldDef): World => {
       ),
   );
   const npcs = def.npcs.map((spec, i) => {
+    // battleId を持つNPCは、会話の最後に「戦う?(はい/いいえ)」の選択肢を提示する
+    const choiceOnEnd: ChoicePrompt | null = spec.battleId
+      ? {
+          question: '戦う?',
+          options: [
+            { label: 'はい', value: `battle:${spec.battleId}` },
+            { label: 'いいえ', value: 'no' },
+          ],
+        }
+      : null;
     const npc = new Npc(
       `${def.id}-npc-${i}`,
       spec.name,
@@ -262,6 +278,7 @@ const buildWorld = (def: WorldDef): World => {
       spec.wanderRadius,
       def.id.charCodeAt(0) * 7919 + i * 104729, // ワールド・個体ごとに異なる決定的シード
       spec.eventId ? EVENTS[spec.eventId] : null,
+      choiceOnEnd,
     );
     if (spec.wanderRadius <= 0) {
       // 静止NPCは指定の向き、なければ広場の中心(原点)を向いて立つ
@@ -314,6 +331,7 @@ const APP_NAME = 'Portal Walk';
 const saveService = new SaveService(APP_NAME, systemClock);
 const snapshotCodec = new Base64JsonSnapshotCodec();
 const imageCodec = new PngSaveImageCodec();
+const battleService = new BattleService();
 const applyDash = new ApplyDashUseCase(session, movement);
 const applyLook = new ApplyLookUseCase(session);
 const stopMovement = new StopMovementUseCase(session, movement);
@@ -355,11 +373,14 @@ const saveImageBtn = document.getElementById('save-image');
 const saveImageLoadBtn = document.getElementById('save-image-load');
 const saveImagePreviewEl = document.getElementById('save-image-preview') as HTMLImageElement | null;
 const saveImageFileEl = document.getElementById('save-image-file') as HTMLInputElement | null;
+const choiceOverlayEl = document.getElementById('choice-overlay');
+const battleOverlayEl = document.getElementById('battle-overlay');
 if (
   !container || !worldNameEl || !hintEl || !bubbleEl || !dialogEl || !dialogTextEl ||
   !glideEl || !climbEl || !viewBtn || !saveBtn || !savePanel || !saveCodeEl ||
   !saveCopyBtn || !saveLoadBtn || !saveCloseBtn || !saveStatusEl ||
-  !saveImageBtn || !saveImageLoadBtn || !saveImagePreviewEl || !saveImageFileEl
+  !saveImageBtn || !saveImageLoadBtn || !saveImagePreviewEl || !saveImageFileEl ||
+  !choiceOverlayEl || !battleOverlayEl
 ) {
   throw new Error('required DOM elements are missing');
 }
@@ -458,8 +479,30 @@ saveImageFileEl.addEventListener('change', () => {
 });
 saveCloseBtn.addEventListener('click', closeSavePanel);
 
-// イベント中・セーブパネル表示中は見回し(onLook)以外の操作をロックする
-const inputLocked = (): boolean => session.activeEvent !== null || savePanelOpen;
+// --- 戦闘 / 選択肢オーバーレイ ---
+// 戦闘終了で activeBattle を解除し、元の世界へ戻す(進行状況・フラグは不変)
+const battleOverlay = new BattleOverlayAdapter(battleOverlayEl, battleService, () => {
+  session.activeBattle = null;
+});
+// 「はい/いいえ」の選択。'battle:<id>' なら戦闘開始、それ以外は閉じるだけ(振る舞いはここで解釈)
+const choiceOverlay = new ChoiceOverlayAdapter(choiceOverlayEl, (value) => {
+  session.choice = null;
+  choiceOverlay.close();
+  if (value.startsWith('battle:')) {
+    const def = BATTLES[value.slice('battle:'.length)];
+    if (def) {
+      session.activeBattle = new BattleSession(def);
+      battleOverlay.open(session.activeBattle);
+    }
+  }
+});
+
+// イベント中・セーブパネル/選択肢/戦闘表示中は見回し(onLook)以外の操作をロックする
+const inputLocked = (): boolean =>
+  session.activeEvent !== null ||
+  savePanelOpen ||
+  session.choice !== null ||
+  session.activeBattle !== null;
 const stickInput = new VirtualStickInputAdapter(renderer.canvas, {
   onStickEnd: () => {
     if (inputLocked()) return;
@@ -478,6 +521,11 @@ const stickInput = new VirtualStickInputAdapter(renderer.canvas, {
     if (tapInteract.execute()) {
       worldNameEl.textContent = session.currentWorld.name;
     }
+    // 会話の最後で選択肢が提示されたらオーバーレイを開く(移動は止める)
+    if (session.choice) {
+      stopMovement.execute();
+      choiceOverlay.open(session.choice);
+    }
   },
   // 2本目の指の接地: 落下中なら滑空開始(移動スティックを押したまま起動できる)
   onSecondaryTouch: () => {
@@ -488,6 +536,12 @@ const stickInput = new VirtualStickInputAdapter(renderer.canvas, {
 
 // --- 吹き出し・メッセージウィンドウのUI更新 ---
 function updateInteractionUi(): void {
+  // 選択肢・戦闘中はワールドのUI(会話/吹き出し)を隠す(オーバーレイが前面)
+  if (session.choice || session.activeBattle) {
+    dialogEl!.classList.remove('visible', 'event');
+    bubbleEl!.classList.remove('visible');
+    return;
+  }
   if (session.eventMessage) {
     // イベント中のメッセージ(タップ送りではないので「タップで進む」表示は隠す)
     dialogTextEl!.textContent = session.eventMessage;
@@ -522,20 +576,25 @@ function frame(now: number): void {
   const dt = Math.min((now - lastTime) / 1000, 1 / 30); // タブ復帰時の暴走防止
   lastTime = now;
 
-  if (session.activeEvent) {
-    // イベント進行(walkTo は desiredVelocity を設定、moveProp はプロップを動かす)
-    eventService.tick(session, dt);
-  } else if (!savePanelOpen) {
-    applyStick.execute(stickInput.getStick());
-  }
-  const result = tick.execute(dt);
-  if (result.traversed) {
-    worldNameEl!.textContent = session.currentWorld.name;
+  // 戦闘中・選択肢表示中は世界を凍結する(オーバーレイが操作を受け持つ)
+  if (!session.activeBattle && !session.choice) {
+    if (session.activeEvent) {
+      // イベント進行(walkTo は desiredVelocity を設定、moveProp はプロップを動かす)
+      eventService.tick(session, dt);
+    } else if (!savePanelOpen) {
+      applyStick.execute(stickInput.getStick());
+    }
+    const result = tick.execute(dt);
+    if (result.traversed) {
+      worldNameEl!.textContent = session.currentWorld.name;
+    }
   }
 
   glideEl!.classList.toggle('visible', session.player.gliding);
   climbEl!.classList.toggle('visible', session.player.climbing);
-  saveBtn!.style.display = session.activeEvent ? 'none' : ''; // イベント中はセーブ不可
+  // イベント中・選択肢/戦闘中はセーブ不可
+  saveBtn!.style.display =
+    session.activeEvent || session.choice || session.activeBattle ? 'none' : '';
   updateInteractionUi();
   renderer.render(dt);
   requestAnimationFrame(frame);

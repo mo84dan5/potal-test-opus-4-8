@@ -4,6 +4,8 @@ import { Npc } from './Npc';
 import { Player } from './Player';
 import { World } from './World';
 import { ActiveEvent } from '../values/EventScript';
+import { BattleSession } from './BattleSession';
+import { ChoicePrompt } from '../values/Choice';
 
 /** ゲーム全体の状態を束ねる集約ルート */
 export class GameSession {
@@ -21,6 +23,10 @@ export class GameSession {
   public readonly completedEvents = new Set<string>();
   /** ゲーム進行フラグ(イベントの分岐・出現条件に使う) */
   public readonly flags = new Map<string, boolean>();
+  /** 提示中の選択肢(はい/いいえ等)。null なら非表示。選択待ちは操作をロックする */
+  public choice: ChoicePrompt | null = null;
+  /** 進行中の戦闘。null なら通常。進行中は世界を凍結し戦闘オーバーレイを表示する */
+  public activeBattle: BattleSession | null = null;
 
   private readonly worlds: Map<string, World>;
 

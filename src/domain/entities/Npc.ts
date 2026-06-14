@@ -1,5 +1,6 @@
 import { Vec3 } from '../values/Vec3';
 import { GameEvent } from '../values/EventScript';
+import { ChoicePrompt } from '../values/Choice';
 import { Interactable } from './Interactable';
 
 /**
@@ -38,8 +39,10 @@ export class Npc extends Interactable {
     seed = 1,
     /** タップで開始するイベント(なければ null) */
     event: GameEvent | null = null,
+    /** 会話の最後に提示する選択肢(なければ null) */
+    choiceOnEnd: ChoicePrompt | null = null,
   ) {
-    super(id, name, spawn.withY(anchorY), bubbleText, dialogue, null, event);
+    super(id, name, spawn.withY(anchorY), bubbleText, dialogue, null, event, choiceOnEnd);
     this.targetX = spawn.x;
     this.targetZ = spawn.z;
     this.rand = createSeededRandom(seed);

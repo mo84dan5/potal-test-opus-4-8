@@ -219,6 +219,247 @@
         min-height: 1.2em;
         opacity: 0.9;
       }
+      /* --- 選択肢オーバーレイ --- */
+      #choice-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.25);
+        pointer-events: auto;
+        z-index: 45;
+      }
+      #choice-overlay.visible {
+        display: flex;
+      }
+      #choice-overlay .choice-card {
+        width: min(92vw, 480px);
+        box-sizing: border-box;
+        margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+        padding: 16px 18px;
+        border-radius: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.6);
+        background: rgba(10, 14, 40, 0.92);
+        backdrop-filter: blur(6px);
+        color: #fff;
+      }
+      #choice-overlay .choice-question {
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        text-align: center;
+      }
+      #choice-overlay .choice-options {
+        display: flex;
+        gap: 10px;
+      }
+      #choice-overlay .choice-options button {
+        flex: 1;
+        padding: 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      /* --- 戦闘オーバーレイ --- */
+      #battle-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 50% 30%, #1a2350, #070a1c);
+        pointer-events: auto;
+        z-index: 50;
+        color: #fff;
+      }
+      #battle-overlay.visible {
+        display: flex;
+      }
+      #battle-overlay .bt-card {
+        width: min(94vw, 520px);
+        box-sizing: border-box;
+        padding: 22px 20px;
+        text-align: center;
+      }
+      #battle-overlay .bt-phase {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        opacity: 0.95;
+        margin-bottom: 14px;
+      }
+      #battle-overlay .bt-avatar {
+        margin: 0 auto;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+      }
+      #battle-overlay .bt-name {
+        margin-top: 8px;
+        font-weight: 700;
+      }
+      #battle-overlay .bt-comment {
+        margin: 12px auto;
+        max-width: 420px;
+        font-size: 15px;
+        line-height: 1.6;
+        opacity: 0.92;
+      }
+      #battle-overlay .bt-terrain {
+        margin: 8px 0 18px;
+        font-size: 13px;
+        opacity: 0.8;
+      }
+      #battle-overlay .bt-hint {
+        font-size: 12px;
+        opacity: 0.7;
+        margin-bottom: 12px;
+      }
+      #battle-overlay .bt-primary {
+        margin-top: 16px;
+        padding: 12px 28px;
+        border-radius: 999px;
+        border: none;
+        background: linear-gradient(180deg, #ffd35a, #f0a93a);
+        color: #2a1c00;
+        font-size: 16px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      #battle-overlay .bt-primary:disabled {
+        background: rgba(255, 255, 255, 0.18);
+        color: rgba(255, 255, 255, 0.5);
+        cursor: default;
+      }
+      #battle-overlay .bt-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin: 6px 0 14px;
+      }
+      #battle-overlay .bt-char {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 4px;
+        border-radius: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      #battle-overlay .bt-char.main {
+        border-color: #ffd35a;
+        background: rgba(255, 211, 90, 0.16);
+      }
+      #battle-overlay .bt-char.support {
+        border-color: #5ad1ff;
+        background: rgba(90, 209, 255, 0.16);
+      }
+      #battle-overlay .bt-chip {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+      }
+      #battle-overlay .bt-role {
+        position: absolute;
+        top: 2px;
+        right: 4px;
+        font-size: 9px;
+        opacity: 0.85;
+      }
+      #battle-overlay .bt-picks {
+        font-size: 13px;
+        opacity: 0.9;
+        margin-bottom: 4px;
+      }
+      #battle-overlay .bt-fight {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      #battle-overlay .bt-vs {
+        font-size: 20px;
+        font-weight: 800;
+        opacity: 0.8;
+      }
+      #battle-overlay .bt-hp-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 6px auto;
+        max-width: 420px;
+      }
+      #battle-overlay .bt-hp-label {
+        width: 56px;
+        text-align: left;
+        font-size: 12px;
+        opacity: 0.85;
+      }
+      #battle-overlay .bt-hp-track {
+        flex: 1;
+        height: 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        overflow: hidden;
+      }
+      #battle-overlay .bt-hp-fill {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        transition: width 0.2s;
+      }
+      #battle-overlay .bt-hp-num {
+        width: 34px;
+        text-align: right;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+      #battle-overlay .bt-result {
+        padding: 20px 0;
+        border-radius: 16px;
+      }
+      #battle-overlay .bt-result.win {
+        background: radial-gradient(circle, rgba(255, 220, 120, 0.25), transparent 70%);
+      }
+      #battle-overlay .bt-result.lose {
+        background: radial-gradient(circle, rgba(80, 100, 160, 0.25), transparent 70%);
+        filter: saturate(0.7);
+      }
+      #battle-overlay .bt-result-emoji {
+        font-size: 56px;
+      }
+      #battle-overlay .bt-result-title {
+        font-size: 24px;
+        font-weight: 800;
+        margin-top: 6px;
+      }
+      #battle-overlay .bt-result.win .bt-result-title {
+        color: #ffd35a;
+      }
+      #battle-overlay .bt-result.lose .bt-result-title {
+        color: #9fb0d8;
+      }
+      #battle-overlay .bt-result-sub {
+        font-size: 14px;
+        opacity: 0.85;
+        margin-top: 6px;
+      }
       #glide,
       #climb {
         position: fixed;
@@ -354,6 +595,8 @@
         <div id="save-status"></div>
       </div>
     </div>
+    <div id="choice-overlay"></div>
+    <div id="battle-overlay"></div>
     <div id="bubble"></div>
     <div id="dialog">
       <div id="dialog-text"></div>

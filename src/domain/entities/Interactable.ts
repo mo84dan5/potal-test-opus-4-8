@@ -1,5 +1,6 @@
 import { Vec3 } from '../values/Vec3';
 import { GameEvent } from '../values/EventScript';
+import { ChoicePrompt } from '../values/Choice';
 
 /**
  * ワールド内のインタラクト対象オブジェクト。
@@ -22,6 +23,8 @@ export class Interactable {
     public readonly doorPortalId: string | null = null,
     /** タップで開始するイベント。null ならイベントなし */
     public readonly event: GameEvent | null = null,
+    /** 会話を最後まで送ったときに提示する選択肢。null なら選択肢なし(そのまま閉じる) */
+    public readonly choiceOnEnd: ChoicePrompt | null = null,
   ) {}
 
   /** プレイヤー足元からの水平距離 */

@@ -7,6 +7,7 @@
  *   雪の世界 ⇄ 昼の世界 ⇄ 夜の世界 ⇄ 黄昏の遺跡
  */
 import { GameEvent } from '../domain/values/EventScript';
+import { BattleDefinition } from '../domain/values/Battle';
 
 export interface WorldObjectSpec {
   kind: 'tree' | 'rock' | 'crystal' | 'ice' | 'pillar';
@@ -62,6 +63,8 @@ export interface NpcSpec {
   dialogue: string[];
   /** タップで開始するイベントのID(EVENTS のキー)。指定時は会話の代わりにイベントが起きる */
   eventId?: string;
+  /** 会話の最後に「戦う?」の選択肢を出す戦闘のID(BATTLES のキー)。「はい」で戦闘開始 */
+  battleId?: string;
 }
 
 /** イベントで動かせるプロップ(岩など)の定義 */
@@ -379,6 +382,12 @@ export const WORLD_DEFS: WorldDef[] = [
         bubble: '岩をどかすよ', eventId: 'day-rock',
         dialogue: ['岩はもうどかしたよ。', 'もう向こうへ通れるだろう?'],
       },
+      {
+        // 戦闘: 話しかけて「はい」を選ぶと戦闘イベントが始まる(day-duel)
+        x: 3, z: -3, name: '挑戦者', color: 0xb5453a, wanderRadius: 0,
+        bubble: '勝負だ!', battleId: 'day-duel',
+        dialogue: ['よう、見ない顔だな。', 'おれと一勝負しないか?'],
+      },
     ],
     house: { x: -10, z: -13 },
     // 入ると別の室内ワールドへ飛ぶ小屋(ドアは +Z 向き)。大広間と2階建ての家の2棟
@@ -596,6 +605,36 @@ export const EVENTS: Record<string, GameEvent> = {
       { kind: 'say', text: 'この岩、どかしてあげよう。', duration: 2 },
       { kind: 'moveProp', propId: 'day-rock', toX: 1, toZ: 7, duration: 2.5 },
       { kind: 'say', text: 'さあ、通れるようになったよ。', duration: 2.5 },
+    ],
+  },
+};
+
+/**
+ * 戦闘定義レジストリ。NpcSpec.battleId から参照する。
+ * 戦闘は副作用ゼロのオーバーレイ(進行状況・フラグは不変)。
+ */
+export const BATTLES: Record<string, BattleDefinition> = {
+  'day-duel': {
+    id: 'day-duel',
+    opponent: {
+      name: '挑戦者',
+      color: 0xb5453a,
+      comment: '今日のおれは止まらないぜ!',
+      terrainName: '昼の草原',
+      winComment: 'やるな…完敗だ。また勝負しよう!',
+      loseComment: 'ふっ、まだまだ修行が足りないな。',
+    },
+    // 選べる9体(メイン+サポート)
+    roster: [
+      { id: 'c1', name: 'アカ', color: 0xe2524a },
+      { id: 'c2', name: 'ミドリ', color: 0x4caf6a },
+      { id: 'c3', name: 'アオ', color: 0x4a86e2 },
+      { id: 'c4', name: 'キイ', color: 0xe2c84a },
+      { id: 'c5', name: 'モモ', color: 0xe27ab5 },
+      { id: 'c6', name: 'ソラ', color: 0x4ac8e2 },
+      { id: 'c7', name: 'ムラサキ', color: 0x9a5fd3 },
+      { id: 'c8', name: 'ダイダイ', color: 0xe2954a },
+      { id: 'c9', name: 'クロ', color: 0x444a5a },
     ],
   },
 };

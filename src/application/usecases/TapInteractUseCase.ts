@@ -29,8 +29,11 @@ export class TapInteractUseCase {
   execute(): boolean {
     if (this.session.dialogue) {
       if (!this.session.dialogue.advance()) {
+        // 会話を閉じる。話者に「会話後の選択肢」があれば提示する(例: 戦闘するか)
+        const choice = this.session.dialogueSpeaker?.choiceOnEnd ?? null;
         this.session.dialogue = null;
         this.session.dialogueSpeaker = null;
+        this.session.choice = choice;
       }
       return false;
     }

@@ -112,6 +112,35 @@ describe('TapInteractUseCase', () => {
     expect(session.dialogue).not.toBeNull();
   });
 
+  it('会話を最後まで送ると choiceOnEnd の選択肢が提示される', () => {
+    const choice = {
+      question: '戦う?',
+      options: [
+        { label: 'はい', value: 'battle:duel' },
+        { label: 'いいえ', value: 'no' },
+      ],
+    };
+    const npc = new Interactable(
+      'g', '挑戦者', new Vec3(0, 1, -2), 'b', ['勝負しないか?'], null, null, choice,
+    );
+    const session = buildSession([npc]);
+    const usecase = buildUseCase(session);
+    usecase.execute(); // 会話を開く(1行)
+    expect(session.choice).toBeNull();
+    usecase.execute(); // 最後を送って閉じる → 選択肢提示
+    expect(session.dialogue).toBeNull();
+    expect(session.choice).toBe(choice);
+  });
+
+  it('choiceOnEnd の無い相手は会話を閉じても選択肢を出さない', () => {
+    const rock = new Interactable('r', '石', new Vec3(0, 1, -2), null, ['石だ。']);
+    const session = buildSession([rock]);
+    const usecase = buildUseCase(session);
+    usecase.execute();
+    usecase.execute();
+    expect(session.choice).toBeNull();
+  });
+
   it('会話を開くと相手(dialogueSpeaker)が記録され、閉じると解除される', () => {
     const rock = new Interactable('r', '石', new Vec3(0, 1, -2), null, ['これは石だ。']);
     const session = buildSession([rock]);
