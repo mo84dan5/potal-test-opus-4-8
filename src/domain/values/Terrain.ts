@@ -84,7 +84,8 @@ export interface CliffSpec {
  */
 export class CliffField implements HeightField {
   constructor(
-    private readonly base: HeightField,
+    /** 崖を含まない元の地形(地面メッシュ描画はこちらを使うと崖と二重に描かない) */
+    public readonly base: HeightField,
     private readonly cliffs: readonly CliffSpec[],
   ) {}
 

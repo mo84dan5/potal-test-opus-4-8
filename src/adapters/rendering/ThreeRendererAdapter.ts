@@ -3,7 +3,7 @@ import { GameSession } from '../../domain/entities/GameSession';
 import { Player } from '../../domain/entities/Player';
 import { Portal } from '../../domain/entities/Portal';
 import { World } from '../../domain/entities/World';
-import { HeightField } from '../../domain/values/Terrain';
+import { CliffField, HeightField } from '../../domain/values/Terrain';
 import { Vec3 } from '../../domain/values/Vec3';
 import { computeThirdPersonCamera, occludedCameraDistance, smoothTowards } from './cameraView';
 
@@ -63,8 +63,8 @@ export class ThreeRendererAdapter {
   /** 現在ワールドのポータルに毎フレーム割り当てるレンダーターゲットのプール */
   private readonly renderTargetPool: THREE.WebGLRenderTarget[] = [];
   private readonly views = new Map<string, WorldView>();
-  /** 視点モード('first'=1人称 / 'third'=3人称) */
-  private cameraMode: 'first' | 'third' = 'first';
+  /** 視点モード('first'=1人称 / 'third'=3人称)。既定は3人称 */
+  private cameraMode: 'first' | 'third' = 'third';
   /** 3人称時に表示するプレイヤーのアバター(現在ワールドのシーンへ毎フレーム配置) */
   private readonly avatar: THREE.Group;
   /** 3人称カメラの遮蔽回避用レイキャスタ */
@@ -84,8 +84,8 @@ export class ThreeRendererAdapter {
     this.camera = new THREE.PerspectiveCamera(
       70,
       window.innerWidth / window.innerHeight,
-      0.05,
-      300,
+      0.2, // near を大きめにして深度バッファ精度を確保(Zファイティング対策)
+      200, // far を抑えて精度を確保(遠景の星/太陽は 200 以内)
     );
     this.camera.rotation.order = 'YXZ';
     this.virtualCamera = this.camera.clone();
@@ -278,7 +278,11 @@ export class ThreeRendererAdapter {
     } else if (def?.interior && def.room) {
       this.buildRoom(scene, def.room);
     } else {
-      this.buildEnvironment(scene, world.id, world.terrain);
+      // 地面メッシュは崖(CliffField)の盛り上がりを描かない(崖はフラスタムが表現)。
+      // 高さ場と地面メッシュが二重に重なる Zファイティングを防ぐため base 地形で描く。
+      const groundTerrain =
+        world.terrain instanceof CliffField ? world.terrain.base : world.terrain;
+      this.buildEnvironment(scene, world.id, groundTerrain);
     }
     if (def) this.buildObjects(scene, def.objects, world.terrain);
     if (def?.house) this.buildHouse(scene, def.house, world.terrain);
@@ -492,8 +496,9 @@ export class ThreeRendererAdapter {
     const stairW = w - c.stairXMin;
     for (let i = 0; i < steps; i++) {
       const topY = ((i + 1) / steps) * FH;
+      // 各段を少し深くして隣の段と重ねる(同一平面で接して起こる Zファイティングを防ぐ)
       box(
-        stairW, topY, stepDepth,
+        stairW, topY, stepDepth * 1.8,
         stairCx, topY / 2, c.stairZBottom + (i + 0.5) * stepDepth,
         woodMat,
       );
@@ -583,12 +588,14 @@ export class ThreeRendererAdapter {
     const SQRT2 = Math.SQRT2;
     const topR = CLIFF.halfWidth * SQRT2; // 4角柱の頂点までの半径(正方形の対角)
     const botR = (CLIFF.halfWidth + CLIFF.slopeRun) * SQRT2;
+    // 底を 1m 地中へ埋めて、起伏のある地面との隙間/浮きを防ぐ(頂上は CLIFF.height のまま)
+    const buried = 1;
     const mesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(topR, botR, CLIFF.height, 4, 1),
+      new THREE.CylinderGeometry(topR, botR, CLIFF.height + buried, 4, 1),
       new THREE.MeshLambertMaterial({ color: 0x8d7f6a, flatShading: true }),
     );
     mesh.rotation.y = Math.PI / 4; // 面を XZ 軸に揃える
-    mesh.position.set(cliff.x, CLIFF.height / 2, cliff.z);
+    mesh.position.set(cliff.x, (CLIFF.height - buried) / 2, cliff.z);
     scene.add(mesh);
   }
 
