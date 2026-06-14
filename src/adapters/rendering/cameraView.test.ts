@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Vec3 } from '../../domain/values/Vec3';
-import { computeThirdPersonCamera, occludedCameraDistance } from './cameraView';
+import { computeThirdPersonCamera, occludedCameraDistance, smoothTowards } from './cameraView';
 
 describe('computeThirdPersonCamera', () => {
   it('正面(yaw=0,pitch=0)ではプレイヤーの真後ろ(+Z)・頭の高さにカメラが来る', () => {
@@ -49,5 +49,31 @@ describe('occludedCameraDistance(3人称カメラの遮蔽回避)', () => {
 
   it('近すぎる交差では minDist で下限クランプ', () => {
     expect(occludedCameraDistance(4, 0.4, 0.3, 0.6)).toBe(0.6); // 0.1 → 0.6 にクランプ
+  });
+});
+
+describe('smoothTowards(指数スムージング)', () => {
+  it('dt<=0 は現在値のまま', () => {
+    expect(smoothTowards(1, 4, 12, 0)).toBe(1);
+  });
+
+  it('target へ部分的に近づく(行き過ぎない)', () => {
+    const next = smoothTowards(1, 4, 12, 0.1);
+    expect(next).toBeGreaterThan(1);
+    expect(next).toBeLessThan(4);
+    // 1 + (4-1)*(1-exp(-1.2)) ≈ 3.096
+    expect(next).toBeCloseTo(3.096, 2);
+  });
+
+  it('繰り返すと target へ収束する', () => {
+    let v = 1;
+    for (let i = 0; i < 200; i++) v = smoothTowards(v, 4, 12, 0.1);
+    expect(v).toBeCloseTo(4, 5);
+  });
+
+  it('大きい rate ほど速く近づく', () => {
+    const slow = smoothTowards(0, 1, 5, 0.1);
+    const fast = smoothTowards(0, 1, 20, 0.1);
+    expect(fast).toBeGreaterThan(slow);
   });
 });

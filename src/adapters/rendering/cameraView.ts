@@ -44,3 +44,13 @@ export function occludedCameraDistance(
   if (hitDistance === null || hitDistance >= desiredDistance) return desiredDistance;
   return Math.max(minDist, hitDistance - margin);
 }
+
+/**
+ * 指数スムージング: current を target へ rate[1/s] の強さで近づけた値を返す。
+ * フレームレート非依存(`1 - exp(-rate·dt)`)。dt<=0 は current のまま。
+ */
+export function smoothTowards(current: number, target: number, rate: number, dt: number): number {
+  if (dt <= 0) return current;
+  const k = 1 - Math.exp(-rate * dt);
+  return current + (target - current) * k;
+}

@@ -394,7 +394,7 @@ function frame(now: number): void {
   glideEl!.classList.toggle('visible', session.player.gliding);
   climbEl!.classList.toggle('visible', session.player.climbing);
   updateInteractionUi();
-  renderer.render();
+  renderer.render(dt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

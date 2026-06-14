@@ -5,7 +5,10 @@ import { Portal } from '../../domain/entities/Portal';
 import { World } from '../../domain/entities/World';
 import { HeightField } from '../../domain/values/Terrain';
 import { Vec3 } from '../../domain/values/Vec3';
-import { computeThirdPersonCamera, occludedCameraDistance } from './cameraView';
+import { computeThirdPersonCamera, occludedCameraDistance, smoothTowards } from './cameraView';
+
+/** 3人称カメラのブーム距離スムージングの強さ [1/s] */
+const CAMERA_SMOOTH_RATE = 12;
 import {
   CLIFF,
   HOUSE,
@@ -66,6 +69,8 @@ export class ThreeRendererAdapter {
   private readonly avatar: THREE.Group;
   /** 3人称カメラの遮蔽回避用レイキャスタ */
   private readonly cameraRay = new THREE.Raycaster();
+  /** 3人称カメラのブーム距離(スムージング用)。null は未初期化(=次フレーム即スナップ) */
+  private smoothedCamDist: number | null = null;
 
   constructor(
     container: HTMLElement,
@@ -123,10 +128,10 @@ export class ThreeRendererAdapter {
     };
   }
 
-  render(): void {
+  render(dt = 1 / 60): void {
     const world = this.session.currentWorld;
     const view = this.viewOf(world.id);
-    this.syncCamera(this.session.player, view.scene);
+    this.syncCamera(this.session.player, view.scene, dt);
     this.syncNpcs();
     this.syncAvatar(view.scene);
 
@@ -207,7 +212,7 @@ export class ThreeRendererAdapter {
     return view;
   }
 
-  private syncCamera(player: Player, scene: THREE.Scene): void {
+  private syncCamera(player: Player, scene: THREE.Scene, dt: number): void {
     if (this.cameraMode === 'third') {
       const cam = computeThirdPersonCamera(player.position, player.yaw, player.pitch, 4, 1.4);
       const target = new THREE.Vector3(cam.target.x, cam.target.y, cam.target.z);
@@ -222,12 +227,19 @@ export class ThreeRendererAdapter {
       const targets = scene.children.filter((c) => c !== this.avatar);
       const hits = this.cameraRay.intersectObjects(targets, true);
       const dist = occludedCameraDistance(desiredDist, hits.length ? hits[0].distance : null);
-      const pos = target.clone().addScaledVector(dir, dist);
+      // ブーム距離をスムージング(遮蔽の出入りをなめらかに)。初回は即スナップ
+      this.smoothedCamDist =
+        this.smoothedCamDist === null
+          ? dist
+          : smoothTowards(this.smoothedCamDist, dist, CAMERA_SMOOTH_RATE, dt);
+      const pos = target.clone().addScaledVector(dir, this.smoothedCamDist);
       this.camera.position.copy(pos);
       this.camera.lookAt(target);
       this.camera.updateMatrixWorld();
       return;
     }
+    // 1人称は頭に固定(補間しない)。次に3人称へ入る時は即スナップ
+    this.smoothedCamDist = null;
     const eye = player.eyePosition;
     this.camera.position.set(eye.x, eye.y, eye.z);
     this.camera.rotation.set(player.pitch, player.yaw, 0);
