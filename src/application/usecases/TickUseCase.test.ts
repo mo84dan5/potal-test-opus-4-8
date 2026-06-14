@@ -8,6 +8,7 @@ import { World } from '../../domain/entities/World';
 import { Vec3 } from '../../domain/values/Vec3';
 import { MovementService } from '../../domain/services/MovementService';
 import { PortalTraversalService } from '../../domain/services/PortalTraversalService';
+import { ActiveEvent } from '../../domain/values/EventScript';
 import { TickUseCase } from './TickUseCase';
 
 const buildSession = (player: Player): GameSession => {
@@ -213,5 +214,21 @@ describe('TickUseCase', () => {
     expect(player.position.z).toBeCloseTo(-1.15);
     // 石へ向かう速度成分は打ち消されている
     expect(player.velocity.z).toBeCloseTo(0);
+  });
+
+  it('イベント中は主役NPC(eventActor)のコライダーが待機中の主人公を押しのけない', () => {
+    const npc = new Npc('guide', '案内', new Vec3(0, 0, 0), 2, 'b', [], new Vec3(0, 0, 0), 0, 1);
+    npc.moveTo(0, 0, 0); // コライダーを主人公位置(0,0,0)に重ねる
+    const world = new World('day', '昼', [], [npc], [npc.collider], [npc]);
+    const player = new Player(new Vec3(0, 0, 0), Vec3.ZERO, 0, 0);
+    const session = new GameSession([world], 'day', player);
+    session.activeEvent = new ActiveEvent({ id: 'e', steps: [{ kind: 'wait', duration: 5 }] });
+    session.eventActor = npc;
+
+    new TickUseCase(session, new MovementService(), new PortalTraversalService()).execute(0.1);
+
+    // 主役NPCのコライダーは除外されるので、その場に留まる(押し出されない)
+    expect(player.position.x).toBeCloseTo(0);
+    expect(player.position.z).toBeCloseTo(0);
   });
 });

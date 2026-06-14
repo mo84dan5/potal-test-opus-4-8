@@ -1,5 +1,6 @@
 import { GameSession } from '../../domain/entities/GameSession';
 import { Npc } from '../../domain/entities/Npc';
+import { Collider } from '../../domain/values/Collider';
 import { Vec3 } from '../../domain/values/Vec3';
 import { CollisionService } from '../../domain/services/CollisionService';
 import { MovementService } from '../../domain/services/MovementService';
@@ -30,10 +31,15 @@ export class TickUseCase {
 
     this.movement.tick(player, dt, currentWorld.terrain);
     // 押し出し後の位置でポータル判定する(押し戻されたフレームの誤通過を防ぐ)。
-    // 可動プロップ(岩など)のコライダーも現在位置で含める
-    const colliders = currentWorld.props.length
-      ? [...currentWorld.colliders, ...currentWorld.props.map((p) => p.collider)]
+    // イベントの主役NPC(先導/帰宅で動く)は、待機中の主人公を押しのけないようコライダーから除外する。
+    // 可動プロップ(岩など)のコライダーは現在位置で含める。
+    const actorCollider = this.session.eventActor?.collider;
+    let colliders: readonly Collider[] = actorCollider
+      ? currentWorld.colliders.filter((c) => c !== actorCollider)
       : currentWorld.colliders;
+    if (currentWorld.props.length) {
+      colliders = [...colliders, ...currentWorld.props.map((p) => p.collider)];
+    }
     this.collision.resolve(player, colliders);
     // 押し出しで足元がずれた場合も床へ再スナップ(多層床対応。dt=0 で落下は進めない)
     player.position = player.position.withY(
