@@ -756,7 +756,13 @@ export class ThreeRendererAdapter {
     group.position.set(house.x, terrain.heightAt(house.x, house.z), house.z);
 
     const wallMat = new THREE.MeshLambertMaterial({ color: 0xefe3c8 });
-    const trimMat = new THREE.MeshLambertMaterial({ color: 0x7a5230 });
+    // 枠(ドア/窓)は壁と同一平面に重なりがちなので polygonOffset で手前に寄せ、Zファイティングを防ぐ
+    const trimMat = new THREE.MeshLambertMaterial({
+      color: 0x7a5230,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+    });
     const floorMat = new THREE.MeshLambertMaterial({ color: 0xb08968 });
     const w = HOUSE.width / 2;
     const d = HOUSE.depth / 2;
@@ -812,7 +818,8 @@ export class ThreeRendererAdapter {
     box(w - dw, doorH, t, dw + (w - dw) / 2, doorH / 2, d); // 右の脇壁
     box(0.1, 2.2, t + 0.06, -dw, 1.1, d, trimMat);
     box(0.1, 2.2, t + 0.06, dw, 1.1, d, trimMat);
-    box(HOUSE.doorWidth + 0.2, 0.1, t + 0.06, 0, 2.25, d, trimMat);
+    // まぐさ枠: 開口上端(soffit)を覆い、壁(まぐさ)へ少し埋め込んで同一平面の重なりを無くす
+    box(HOUSE.doorWidth + 0.2, 0.4, t + 0.06, 0, 2.3, d, trimMat);
 
     // 屋根(四角錐)
     const roof = new THREE.Mesh(
