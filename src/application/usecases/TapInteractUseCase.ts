@@ -1,5 +1,6 @@
 import { DialogueSession } from '../../domain/entities/DialogueSession';
 import { GameSession } from '../../domain/entities/GameSession';
+import { Npc } from '../../domain/entities/Npc';
 import { InteractionService } from '../../domain/services/InteractionService';
 import { PortalTraversalService } from '../../domain/services/PortalTraversalService';
 import { ActiveEvent } from '../../domain/values/EventScript';
@@ -49,6 +50,7 @@ export class TapInteractUseCase {
     if (target.event !== null) {
       // イベント開始(以降のフレームで EventService が進行。操作は見回しのみに制限される)
       this.session.activeEvent = new ActiveEvent(target.event);
+      this.session.eventActor = target instanceof Npc ? target : null; // 先導・帰宅する主役
       this.session.eventMessage = null;
       return false;
     }

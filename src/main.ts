@@ -263,6 +263,7 @@ const buildWorld = (def: WorldDef): World => {
       // 静止NPCは指定の向き、なければ広場の中心(原点)を向いて立つ
       npc.yaw = spec.yaw ?? Math.atan2(spec.x, spec.z);
     }
+    npc.homeYaw = npc.yaw; // イベント帰宅後に元の向きへ戻すため記録
     npc.moveTo(spec.x, spec.z, terrain.heightAt(spec.x, spec.z)); // 初期位置を地形へスナップ
     return npc;
   });

@@ -1,5 +1,6 @@
 import { DialogueSession } from './DialogueSession';
 import { Interactable } from './Interactable';
+import { Npc } from './Npc';
 import { Player } from './Player';
 import { World } from './World';
 import { ActiveEvent } from '../values/EventScript';
@@ -14,6 +15,8 @@ export class GameSession {
   public activeEvent: ActiveEvent | null = null;
   /** イベント中に表示するメッセージ。null なら非表示 */
   public eventMessage: string | null = null;
+  /** イベントの主役NPC(タップした相手)。escort/actorHome で先導・帰宅する */
+  public eventActor: Npc | null = null;
 
   private readonly worlds: Map<string, World>;
 

@@ -568,13 +568,14 @@ export const WORLD_DEFS: WorldDef[] = [
  * walkTo は主人公の自動歩行、moveProp は可動プロップ(World.props)の移動。
  */
 export const EVENTS: Record<string, GameEvent> = {
-  // 案内役: タップすると主人公を崖の前まで実際に歩いて連れて行く
+  // 案内役: タップすると先導して崖の前まで歩き(主人公は追従)、案内後は元の位置へ戻る
   'day-guide': {
     id: 'day-guide',
     steps: [
       { kind: 'say', text: 'ついておいで。いい場所へ案内するよ。', duration: 2.5 },
-      { kind: 'walkTo', x: 12, z: 12 },
-      { kind: 'say', text: 'ここが崖だ。登ってみるといい。', duration: 3 },
+      { kind: 'escort', x: 12, z: 12 },
+      { kind: 'say', text: 'ここが崖だ。登ってみるといい。私は戻るよ。', duration: 3 },
+      { kind: 'actorHome' },
     ],
   },
   // 岩どかし: タップすると岩が動いて道が開く

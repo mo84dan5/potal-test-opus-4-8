@@ -51,6 +51,7 @@ export class TickUseCase {
     for (const world of this.session.allWorlds) {
       for (const npc of world.npcs) {
         if (npc === this.session.dialogueSpeaker) continue;
+        if (npc === this.session.eventActor) continue; // イベント中の主役はイベントが動かす
         this.npcWander.tick(npc, dt, world.colliders, world.terrain);
       }
     }

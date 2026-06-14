@@ -2,12 +2,16 @@
  * スクリプト化イベントの1ステップ。再生は EventService が担う。
  * - say:       一定時間メッセージを表示する
  * - walkTo:    主人公を (x,z) まで自動で歩かせる(地形追従・衝突は移動処理が担当)
+ * - escort:    イベントの主役NPC(タップした相手)が (x,z) まで先導して歩き、主人公はその後ろを追う
+ * - actorHome: 主役NPCが元の位置(wanderCenter)へ歩いて戻る。主人公は待機(見回しのみ)
  * - moveProp:  可動プロップ(EventProp)を (toX,toZ) へ duration 秒かけて動かす
  * - wait:      一定時間待つ
  */
 export type EventStep =
   | { kind: 'say'; text: string; duration: number }
   | { kind: 'walkTo'; x: number; z: number }
+  | { kind: 'escort'; x: number; z: number }
+  | { kind: 'actorHome' }
   | { kind: 'moveProp'; propId: string; toX: number; toZ: number; duration: number }
   | { kind: 'wait'; duration: number };
 

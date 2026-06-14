@@ -10,6 +10,8 @@ import { Interactable } from './Interactable';
 export class Npc extends Interactable {
   /** 向いている方位(プレイヤーと同じ規約: yaw=0 で -Z) */
   public yaw = 0;
+  /** 初期(本来)の向き。イベントの帰宅後に元の向きへ戻すために使う */
+  public homeYaw = 0;
   /** 立ち止まりの残り時間 [s] */
   public pauseTimer = 0;
   /** 現在の目的地(XZ) */
