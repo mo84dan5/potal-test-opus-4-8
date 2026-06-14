@@ -102,6 +102,8 @@ export class VirtualStickInputAdapter {
   }
 
   private readonly onDown = (e: PointerEvent): void => {
+    // タッチドラッグでテキスト選択・コールアウトが起動する既定動作を抑止する(CSSと併用の保険)
+    if (e.cancelable) e.preventDefault();
     // 役割はこの指を登録する前の状態(他の指の有無)で決める
     const role = roleForTouch(
       this.stickPointerId !== null,

@@ -18,16 +18,28 @@
         overflow: hidden;
         background: #0b1026;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        /* タッチ操作(移動スティックのドラッグ)でテキスト選択やコールアウトが
+           起動しないよう全体で抑止する(子要素へ継承される) */
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
       }
       #app {
         position: fixed;
         inset: 0;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
       }
       #app canvas {
         display: block;
         width: 100%;
         height: 100%;
         touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
       }
       #hud {
         position: fixed;
@@ -84,6 +96,9 @@
         transform: translate(-50%, -50%);
         border-radius: 50%;
         pointer-events: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
         z-index: 10;
       }
       .stick-base {
