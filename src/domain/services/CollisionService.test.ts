@@ -46,4 +46,28 @@ describe('CollisionService', () => {
     expect(da).toBeGreaterThanOrEqual(0.85 - 1e-6);
     expect(db).toBeGreaterThanOrEqual(0.85 - 1e-6);
   });
+
+  describe('高さ制限コライダー(yMin/yMax)', () => {
+    // 地面レベル(y 0..2.6)にだけ効くブロッカー
+    const groundBlocker = { position: new Vec3(0, 0, 0), radius: 0.5, yMin: 0, yMax: 2.6 };
+
+    it('足元が範囲内(1階, y=0)なら押し出される', () => {
+      const player = newPlayer(new Vec3(0.5, 0, 0));
+      service.resolve(player, [groundBlocker]);
+      expect(player.position.x).toBeCloseTo(0.85);
+    });
+
+    it('足元が範囲より上(2階, y=3)なら作用しない(2階に影響しない)', () => {
+      const player = newPlayer(new Vec3(0.5, 3, 0));
+      service.resolve(player, [groundBlocker]);
+      expect(player.position.x).toBeCloseTo(0.5); // 押し出されない
+    });
+
+    it('yMin/yMax 未指定のコライダーは全高さに作用する(従来どおり)', () => {
+      const wall = { position: new Vec3(0, 0, 0), radius: 0.5 };
+      const player = newPlayer(new Vec3(0.5, 3, 0));
+      service.resolve(player, [wall]);
+      expect(player.position.x).toBeCloseTo(0.85);
+    });
+  });
 });

@@ -9,7 +9,8 @@ import {
   ROOM_WALL_COLLIDER_RADIUS,
   roomWallColliderSpots,
   TWO_FLOOR,
-  twoFloorRailingColliderSpots,
+  TWO_FLOOR_STAIR_BLOCKER_YMAX,
+  twoFloorStairBlockerSpots,
   WORLD_DEFS,
 } from './worldContent';
 
@@ -205,24 +206,32 @@ describe('roomWallColliderSpots(室内ワールドの壁)', () => {
   });
 });
 
-describe('twoFloorRailingColliderSpots(2階の手すり)', () => {
-  const spots = twoFloorRailingColliderSpots();
+describe('twoFloorStairBlockerSpots(階段ブロッカー)', () => {
+  const spots = twoFloorStairBlockerSpots();
+  const w = TWO_FLOOR.width / 2;
 
-  it('手すりは階段の開放側(x=stairXMin)のみで、ロフト前縁(z=loftFrontZ)には置かない', () => {
-    // すべて x=stairXMin 上(階段脇)
-    expect(spots.length).toBeGreaterThan(0);
-    expect(spots.every((s) => Math.abs(s.x - TWO_FLOOR.stairXMin) < 1e-6)).toBe(true);
-    // ロフト前縁(z=loftFrontZ かつ x<stairXMin)には手すりが無い
-    // = 1階のプレイヤーがロフト下へ進む経路を塞がない
-    const frontRail = spots.filter(
-      (s) => Math.abs(s.z - TWO_FLOOR.loftFrontZ) < 1e-6 && s.x < TWO_FLOOR.stairXMin - 1e-6,
-    );
-    expect(frontRail.length).toBe(0);
+  it('開放側(x=stairXMin)を上端 z=loftFrontZ まで隙間なく囲う', () => {
+    const side = spots.filter((s) => Math.abs(s.x - TWO_FLOOR.stairXMin) < 1e-6);
+    expect(side.length).toBeGreaterThan(0);
+    expect(Math.min(...side.map((s) => s.z))).toBeLessThanOrEqual(TWO_FLOOR.stairZBottom + 1e-6);
+    expect(Math.max(...side.map((s) => s.z))).toBeGreaterThanOrEqual(TWO_FLOOR.loftFrontZ - 0.6);
   });
 
-  it('階段脇の支柱は z 範囲(stairZBottom..loftFrontZ)に収まる', () => {
-    expect(
-      spots.every((s) => s.z >= TWO_FLOOR.stairZBottom - 1e-6 && s.z <= TWO_FLOOR.loftFrontZ),
-    ).toBe(true);
+  it('裏側(z=loftFrontZ)を階段幅 x∈[stairXMin,w] に並べる', () => {
+    const back = spots.filter((s) => Math.abs(s.z - TWO_FLOOR.loftFrontZ) < 1e-6);
+    expect(back.length).toBeGreaterThan(0);
+    expect(back.every((s) => s.x >= TWO_FLOOR.stairXMin - 1e-6 && s.x <= w + 1e-6)).toBe(true);
+  });
+
+  it('ロフト前縁の x<stairXMin には置かない(1階からロフト下へは入れる)', () => {
+    const underLoftPath = spots.filter(
+      (s) => Math.abs(s.z - TWO_FLOOR.loftFrontZ) < 1e-6 && s.x < TWO_FLOOR.stairXMin - 1e-6,
+    );
+    expect(underLoftPath.length).toBe(0);
+  });
+
+  it('ブロッカーの高さ上限は2階の足元(floorHeight)未満(2階に影響しない)', () => {
+    expect(TWO_FLOOR_STAIR_BLOCKER_YMAX).toBeLessThan(TWO_FLOOR.floorHeight);
+    expect(TWO_FLOOR_STAIR_BLOCKER_YMAX).toBeGreaterThan(0);
   });
 });

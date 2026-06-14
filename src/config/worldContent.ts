@@ -206,18 +206,27 @@ export const TWO_FLOOR = {
 } as const;
 
 /**
- * 2階建ての家の手すりコライダー位置(XZ・部屋中心が原点)。
- * 階段の開放側(x=stairXMin)にのみ並べ、階段の踏み外しを防ぐ。
- * ロフト前縁には手すりを置かない: 1階のプレイヤーがロフトの下へ自由に入れるようにするため
- * (前縁は開放型のメザニン。踏み外しは MovementService が滑らかに降下させる)。
+ * 2階建ての家の「階段ブロッカー」コライダー位置(XZ・部屋中心が原点)。
+ * 階段フットプリント(x∈[stairXMin,w], z∈[stairZBottom,loftFrontZ])の地面レベルへ
+ * 1階のプレイヤーが侵入(=ソリッドな階段の下に潜り込む)のを防ぐため、
+ * 開放側(x=stairXMin)と裏側(z=loftFrontZ)を囲う。
+ * これらは高さ制限(yMax<floorHeight)で運用するため、ロフト(2階)には影響しない。
+ * ロフト前縁(x<stairXMin)には置かないので、1階からロフトの下へは従来どおり入れる。
  */
-export const TWO_FLOOR_RAILING_RADIUS = 0.3;
-export function twoFloorRailingColliderSpots(): Array<{ x: number; z: number }> {
+export const TWO_FLOOR_STAIR_BLOCKER_RADIUS = 0.35;
+/** 階段ブロッカーが作用する高さ上限 [m](2階の足元 floorHeight には影響しない値) */
+export const TWO_FLOOR_STAIR_BLOCKER_YMAX = TWO_FLOOR.floorHeight - 0.4;
+export function twoFloorStairBlockerSpots(): Array<{ x: number; z: number }> {
   const spots: Array<{ x: number; z: number }> = [];
+  const w = TWO_FLOOR.width / 2;
   const step = 0.6;
-  // 階段の開放側(左側)に沿った手すりのみ
-  for (let z = TWO_FLOOR.stairZBottom; z <= TWO_FLOOR.loftFrontZ - step + 1e-6; z += step) {
+  // 開放側(左側 x=stairXMin)。上端(z=loftFrontZ)まで隙間なく
+  for (let z = TWO_FLOOR.stairZBottom; z <= TWO_FLOOR.loftFrontZ + 1e-6; z += step) {
     spots.push({ x: TWO_FLOOR.stairXMin, z });
+  }
+  // 裏側(z=loftFrontZ、階段幅 x∈[stairXMin,w])
+  for (let x = TWO_FLOOR.stairXMin; x <= w + 1e-6; x += step) {
+    spots.push({ x, z: TWO_FLOOR.loftFrontZ });
   }
   return spots;
 }

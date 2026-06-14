@@ -32,8 +32,9 @@ import {
   ROOM_WALL_COLLIDER_RADIUS,
   roomWallColliderSpots,
   TWO_FLOOR,
-  TWO_FLOOR_RAILING_RADIUS,
-  twoFloorRailingColliderSpots,
+  TWO_FLOOR_STAIR_BLOCKER_RADIUS,
+  TWO_FLOOR_STAIR_BLOCKER_YMAX,
+  twoFloorStairBlockerSpots,
   WORLD_DEFS,
   WorldDef,
   WorldObjectSpec,
@@ -199,12 +200,15 @@ const portalHouseColliders = (def: WorldDef): Collider[] =>
     })),
   );
 
-// 2階建ての家(室内)の手すりコライダー: 段差の縁からの転落を防ぐ
-const twoFloorRailingColliders = (def: WorldDef): Collider[] => {
+// 2階建ての家(室内)の階段ブロッカー: 階段の裏(下)への1階からの侵入を防ぐ。
+// 高さ制限(yMax<floorHeight)付きなので、ロフト(2階)の歩行には影響しない。
+const twoFloorStairBlockers = (def: WorldDef): Collider[] => {
   if (def.floorKind !== 'two-floor') return [];
-  return twoFloorRailingColliderSpots().map((s) => ({
+  return twoFloorStairBlockerSpots().map((s) => ({
     position: new Vec3(s.x, 0, s.z),
-    radius: TWO_FLOOR_RAILING_RADIUS,
+    radius: TWO_FLOOR_STAIR_BLOCKER_RADIUS,
+    yMin: 0,
+    yMax: TWO_FLOOR_STAIR_BLOCKER_YMAX,
   }));
 };
 
@@ -268,7 +272,7 @@ const buildWorld = (def: WorldDef): World => {
       ...houseColliders(def),
       ...portalHouseColliders(def),
       ...roomColliders(def),
-      ...twoFloorRailingColliders(def),
+      ...twoFloorStairBlockers(def),
       ...portals.flatMap(portalPillarColliders),
       ...portals.flatMap(doorBlockerColliders),
       ...npcs.map((n) => n.collider),
