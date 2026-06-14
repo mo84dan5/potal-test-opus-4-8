@@ -219,6 +219,17 @@
         min-height: 1.2em;
         opacity: 0.9;
       }
+      /* オーバーレイ内は連打してもダブルタップ拡大/選択/ハイライトを起こさない */
+      #choice-overlay,
+      #battle-overlay,
+      #choice-overlay *,
+      #battle-overlay * {
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
       /* --- 選択肢オーバーレイ --- */
       #choice-overlay {
         position: fixed;
