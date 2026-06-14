@@ -9,10 +9,12 @@ import {
   ROOM_WALL_COLLIDER_RADIUS,
   roomWallColliderSpots,
   TWO_FLOOR,
+  TWO_FLOOR_STAIR_BLOCKER_RADIUS,
   TWO_FLOOR_STAIR_BLOCKER_YMAX,
   twoFloorStairBlockerSpots,
   WORLD_DEFS,
 } from './worldContent';
+import { PLAYER_RADIUS } from '../domain/services/CollisionService';
 
 const HX = -10;
 const HZ = -13;
@@ -230,8 +232,16 @@ describe('twoFloorStairBlockerSpots(階段ブロッカー)', () => {
     expect(underLoftPath.length).toBe(0);
   });
 
-  it('ブロッカーの高さ上限は2階の足元(floorHeight)未満(2階に影響しない)', () => {
-    expect(TWO_FLOOR_STAIR_BLOCKER_YMAX).toBeLessThan(TWO_FLOOR.floorHeight);
+  it('高さ上限は1階侵入を阻止しつつ、登坂・2階を妨げない低さである', () => {
+    // 1階(足元0)の侵入を阻止する
     expect(TWO_FLOOR_STAIR_BLOCKER_YMAX).toBeGreaterThan(0);
+    // 2階(足元 floorHeight)には作用しない
+    expect(TWO_FLOOR_STAIR_BLOCKER_YMAX).toBeLessThan(TWO_FLOOR.floorHeight);
+    // 裏側ブロッカーの作用境界 z における階段面の高さより低い → 登坂中に引っかからない
+    const boundaryZ = TWO_FLOOR.loftFrontZ - (TWO_FLOOR_STAIR_BLOCKER_RADIUS + PLAYER_RADIUS);
+    const run = TWO_FLOOR.stairZTop - TWO_FLOOR.stairZBottom;
+    const stairHeightAtBoundary =
+      ((boundaryZ - TWO_FLOOR.stairZBottom) / run) * TWO_FLOOR.floorHeight;
+    expect(TWO_FLOOR_STAIR_BLOCKER_YMAX).toBeLessThan(stairHeightAtBoundary);
   });
 });

@@ -214,8 +214,13 @@ export const TWO_FLOOR = {
  * ロフト前縁(x<stairXMin)には置かないので、1階からロフトの下へは従来どおり入れる。
  */
 export const TWO_FLOOR_STAIR_BLOCKER_RADIUS = 0.35;
-/** 階段ブロッカーが作用する高さ上限 [m](2階の足元 floorHeight には影響しない値) */
-export const TWO_FLOOR_STAIR_BLOCKER_YMAX = TWO_FLOOR.floorHeight - 0.4;
+/**
+ * 階段ブロッカーが作用する高さ上限 [m]。腰高の低い「壁」にする。
+ * 1階(足元0)の侵入は阻止しつつ、階段上端を登る人(足元≈2.5)・2階(足元3.0)には作用させない。
+ * 裏側ブロッカーの作用境界 z=-(0.35+0.35) における階段面の高さ 2.475m を下回る必要があるため、
+ * 余裕を持って 1.2m とする(これより高いと登坂中に引っかかる)。
+ */
+export const TWO_FLOOR_STAIR_BLOCKER_YMAX = 1.2;
 export function twoFloorStairBlockerSpots(): Array<{ x: number; z: number }> {
   const spots: Array<{ x: number; z: number }> = [];
   const w = TWO_FLOOR.width / 2;
