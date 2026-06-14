@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLAT_TERRAIN, HillyTerrain, TwoFloorField } from './Terrain';
+import { CliffField, FLAT_TERRAIN, HillyTerrain, TwoFloorField } from './Terrain';
 
 describe('Terrain', () => {
   it('FLAT_TERRAIN は常に高さ0', () => {
@@ -123,5 +123,34 @@ describe('TwoFloorField(2階建ての家の床高さ)', () => {
     expect(f.floorAt(5, -2, 0)).toBe(0);
     // 中腹の高さにいれば階段面に乗る
     expect(f.floorAt(5, -2, 1.5)).toBeCloseTo(1.5);
+  });
+});
+
+describe('CliffField(崖=メサ)', () => {
+  const cliff = { x: 0, z: 0, halfWidth: 2, halfDepth: 2, height: 4, slopeRun: 1.5 };
+  const f = new CliffField(FLAT_TERRAIN, [cliff]);
+
+  it('頂上の矩形内は height', () => {
+    expect(f.heightAt(0, 0)).toBe(4);
+    expect(f.heightAt(1.9, -1.9)).toBe(4);
+  });
+
+  it('縁から slopeRun の斜面は height→0 へ線形に降りる', () => {
+    expect(f.heightAt(2.75, 0)).toBeCloseTo(2); // はみ出し0.75 / 1.5 → 50%
+    expect(f.heightAt(3.49, 0)).toBeGreaterThan(0);
+  });
+
+  it('斜面の外は元の地形(ここでは0)', () => {
+    expect(f.heightAt(3.5, 0)).toBe(0); // はみ出し1.5 = slopeRun → 外
+    expect(f.heightAt(10, 10)).toBe(0);
+  });
+
+  it('元の地形と崖の高い方を採用する', () => {
+    const hilly = new CliffField(
+      { heightAt: () => 1 }, // 一様に高さ1の地形
+      [cliff],
+    );
+    expect(hilly.heightAt(0, 0)).toBe(4); // 崖の方が高い
+    expect(hilly.heightAt(10, 10)).toBe(1); // 崖の外は地形
   });
 });

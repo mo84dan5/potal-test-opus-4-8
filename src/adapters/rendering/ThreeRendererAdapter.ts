@@ -6,6 +6,7 @@ import { World } from '../../domain/entities/World';
 import { HeightField } from '../../domain/values/Terrain';
 import { Vec3 } from '../../domain/values/Vec3';
 import {
+  CLIFF,
   HOUSE,
   HouseSpec,
   PORTAL_HOUSE,
@@ -222,6 +223,7 @@ export class ThreeRendererAdapter {
     for (const ph of def?.portalHouses ?? []) {
       this.buildPortalHouse(scene, ph, world.terrain);
     }
+    if (def?.cliff) this.buildCliff(scene, def.cliff);
 
     const npcMeshes = new Map<string, THREE.Group>();
     world.npcs.forEach((npc, i) => {
@@ -509,6 +511,23 @@ export class ThreeRendererAdapter {
     group.add(roof);
 
     scene.add(group);
+  }
+
+  /**
+   * よじ登れる崖(メサ)。高さ場(CliffField)に合わせた四角錐フラスタムの岩塊を描く。
+   * 頂上は CLIFF.halfWidth の正方形、底面は +slopeRun だけ広い(急斜面)。
+   */
+  private buildCliff(scene: THREE.Scene, cliff: { x: number; z: number }): void {
+    const SQRT2 = Math.SQRT2;
+    const topR = CLIFF.halfWidth * SQRT2; // 4角柱の頂点までの半径(正方形の対角)
+    const botR = (CLIFF.halfWidth + CLIFF.slopeRun) * SQRT2;
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(topR, botR, CLIFF.height, 4, 1),
+      new THREE.MeshLambertMaterial({ color: 0x8d7f6a, flatShading: true }),
+    );
+    mesh.rotation.y = Math.PI / 4; // 面を XZ 軸に揃える
+    mesh.position.set(cliff.x, CLIFF.height / 2, cliff.z);
+    scene.add(mesh);
   }
 
   private addGround(

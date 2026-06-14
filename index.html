@@ -113,7 +113,8 @@
         background: rgba(255, 255, 255, 0.55);
         box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
       }
-      #glide {
+      #glide,
+      #climb {
         position: fixed;
         top: calc(env(safe-area-inset-top, 0px) + 56px);
         left: 50%;
@@ -133,7 +134,11 @@
         transition: opacity 0.2s;
         z-index: 20;
       }
-      #glide.visible {
+      #climb {
+        background: rgba(120, 90, 50, 0.6);
+      }
+      #glide.visible,
+      #climb.visible {
         opacity: 1;
       }
       #bubble {
@@ -212,6 +217,7 @@
     </div>
     <div id="hint">下半分で移動 / 上半分で見回し / はじくとダッシュ</div>
     <div id="glide">🪂 滑空中</div>
+    <div id="climb">🧗 よじ登り中</div>
     <div id="bubble"></div>
     <div id="dialog">
       <div id="dialog-text"></div>

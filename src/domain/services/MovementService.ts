@@ -28,6 +28,8 @@ export const FALL_SPEED = 6;
 export const GLIDE_FALL_SPEED = 1.5;
 /** 滑空中の水平移動の最大速度 [m/s](ゆっくり前後左右に移動) */
 export const GLIDE_MOVE_SPEED = 3;
+/** 急斜面/崖をよじ登るときの上昇速度 [m/s](これを超える急上昇は登坂として時間をかける) */
+export const CLIMB_SPEED = 2.5;
 
 /** 慣性つき移動のドメインサービス */
 export class MovementService {
@@ -62,15 +64,18 @@ export class MovementService {
    */
   floorY(terrain: HeightField, x: number, z: number, currentY: number, dt: number): number {
     const floor = this.surfaceAt(terrain, x, z, currentY);
-    const drop = currentY - floor;
-    if (drop <= FALL_STEP_THRESHOLD) return floor; // 段差越え(上り含む)は即スナップ
+    const delta = floor - currentY; // + = 床が上(上り) / - = 床が下(下り)
+    if (delta > FALL_STEP_THRESHOLD) return currentY; // 急な上り(崖)は再スナップでは登らない(tickが担当)
+    if (delta >= -FALL_STEP_THRESHOLD) return floor; // 段差越え(緩い上り下り)は即スナップ
     return Math.max(floor, currentY - FALL_SPEED * dt); // 大きな落差は滑らかに降下
   }
 
-  /** 1フレーム分の積分: 位置更新・速度制御(追従 or 減衰)・範囲クランプ・落下/滑空 */
+  /** 1フレーム分の積分: 位置更新・速度制御(追従 or 減衰)・範囲クランプ・登坂/落下/滑空 */
   tick(player: Player, dt: number, terrain: HeightField = FLAT_TERRAIN): void {
     if (dt <= 0) return;
     const currentY = player.position.y; // 今フレームの垂直解決の基準
+    const x0 = player.position.x;
+    const z0 = player.position.z;
     let pos = player.position.add(player.velocity.scale(dt));
 
     const r = Math.hypot(pos.x, pos.z);
@@ -79,17 +84,31 @@ export class MovementService {
       pos = new Vec3(pos.x * k, pos.y, pos.z * k);
     }
 
-    // 垂直方向: 段差越えは即スナップ、大きな落差は降下(滑空中はさらに遅い)
+    // 垂直方向の解決: 急な上り=よじ登り / 段差越え / 落下
     const floor = this.surfaceAt(terrain, pos.x, pos.z, currentY);
-    const airborne = currentY - floor > FALL_STEP_THRESHOLD;
-    if (airborne) {
+    const delta = floor - currentY;
+    if (delta > FALL_STEP_THRESHOLD) {
+      // 崖をよじ登る: 1フレームの上昇を CLIMB_SPEED に制限し、水平も同率に抑えて面に沿わせる
+      const maxRise = CLIMB_SPEED * dt;
+      const frac = Math.min(1, maxRise / delta);
+      const cx = x0 + (pos.x - x0) * frac;
+      const cz = z0 + (pos.z - z0) * frac;
+      player.position = new Vec3(cx, currentY + Math.min(delta, maxRise), cz);
+      player.climbing = true;
+      player.airborne = false;
+      player.gliding = false;
+    } else if (delta >= -FALL_STEP_THRESHOLD) {
+      // 段差越え(緩い上り下り・歩行)
+      player.position = pos.withY(floor);
+      player.climbing = false;
+      player.airborne = false;
+      player.gliding = false; // 着地で滑空は解除
+    } else {
+      // 大きな落差: 落下(滑空中はさらに遅い)
       const fallSpeed = player.gliding ? GLIDE_FALL_SPEED : FALL_SPEED;
       player.position = pos.withY(Math.max(floor, currentY - fallSpeed * dt));
       player.airborne = true;
-    } else {
-      player.position = pos.withY(floor);
-      player.airborne = false;
-      player.gliding = false; // 着地で滑空は解除
+      player.climbing = false;
     }
 
     if (player.desiredVelocity) {

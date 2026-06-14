@@ -144,4 +144,37 @@ describe('MovementService', () => {
     service.tick(player, 0.1, terrain);
     expect(Math.hypot(player.velocity.x, player.velocity.z)).toBeCloseTo(3); // GLIDE_MOVE_SPEED
   });
+
+  // x>=1 で高さ4の壁(崖)
+  const wall = { heightAt: (x: number) => (x >= 1 ? 4 : 0) };
+
+  it('急な上り(崖)はよじ登りになり、1フレームの上昇が CLIMB_SPEED に制限される', () => {
+    const service = new MovementService();
+    const player = newPlayer();
+    player.velocity = new Vec3(10, 0, 0); // 壁(+X)へ突っ込む
+    service.tick(player, 0.1, wall);
+    expect(player.climbing).toBe(true);
+    expect(player.position.y).toBeCloseTo(0.25); // CLIMB_SPEED 2.5 * 0.1
+    expect(player.position.x).toBeLessThan(1); // 壁を貫通せず手前で登る
+  });
+
+  it('押し続けると崖を登り切って頂上に到達し、登坂が終わる', () => {
+    const service = new MovementService();
+    const player = newPlayer();
+    player.desiredVelocity = new Vec3(10, 0, 0); // 押し続ける
+    for (let i = 0; i < 40; i++) service.tick(player, 0.1, wall);
+    expect(player.position.y).toBeCloseTo(4); // 頂上
+    expect(player.climbing).toBe(false);
+    expect(player.position.x).toBeGreaterThanOrEqual(1); // 頂上(plateau)へ
+  });
+
+  it('緩い上り(段差越えの範囲)は即スナップで登れる(崖扱いしない)', () => {
+    const service = new MovementService();
+    const player = newPlayer();
+    player.velocity = new Vec3(2, 0, 0);
+    const gentle = { heightAt: (x: number) => 0.2 * x }; // 緩斜面
+    service.tick(player, 0.1, gentle);
+    expect(player.climbing).toBe(false);
+    expect(player.position.x).toBeCloseTo(0.2); // 水平は抑えられない
+  });
 });

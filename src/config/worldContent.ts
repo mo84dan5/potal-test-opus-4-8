@@ -236,6 +236,18 @@ export function twoFloorStairBlockerSpots(): Array<{ x: number; z: number }> {
   return spots;
 }
 
+/**
+ * 崖(メサ)の頂上寸法。よじ登れる「壁」。
+ * slopeRun はほぼ垂直の薄い斜面にする(これにより足元高さが急変し、
+ * MovementService の登坂レート制限=よじ登りが確実に発動する。緩斜面だと即歩いて登れてしまう)。
+ */
+export const CLIFF = {
+  halfWidth: 2,
+  halfDepth: 2,
+  height: 4,
+  slopeRun: 0.3,
+} as const;
+
 export interface WorldDef {
   id: string;
   name: string;
@@ -244,6 +256,8 @@ export interface WorldDef {
   npcs: NpcSpec[];
   /** 家(入れる建物)。ドアは +Z 向き */
   house?: HouseSpec;
+  /** よじ登れる崖(メサ)の中心位置。寸法は CLIFF */
+  cliff?: { x: number; z: number };
   /** 室内ワールド型の家(外観の小屋)。複数可。各ドアのポータルで room ワールドへ飛ぶ */
   portalHouses?: PortalHouseSpec[];
   /** このワールドが室内(囲まれた部屋)である場合の寸法。指定時は屋外環境を描かない */
@@ -343,6 +357,7 @@ export const WORLD_DEFS: WorldDef[] = [
       { x: 10, z: -13 }, // 大広間(grand-hall)
       { x: -16, z: -2 }, // 2階建ての家(two-floor-house)
     ],
+    cliff: { x: 16, z: 16 },
   },
   {
     id: 'night',
@@ -381,6 +396,7 @@ export const WORLD_DEFS: WorldDef[] = [
       },
     ],
     house: { x: -9, z: -13 },
+    cliff: { x: 16, z: 16 },
   },
   {
     id: 'snow',
@@ -417,6 +433,7 @@ export const WORLD_DEFS: WorldDef[] = [
       },
     ],
     house: { x: 10, z: -12 },
+    cliff: { x: 16, z: 16 },
   },
   {
     id: 'ruins',
@@ -454,6 +471,7 @@ export const WORLD_DEFS: WorldDef[] = [
       },
     ],
     house: { x: 10, z: -12 },
+    cliff: { x: 16, z: 16 },
   },
   {
     // 室内ワールド: 昼の世界の小屋(portalHouse)のドアから飛んでくる広大な大広間。

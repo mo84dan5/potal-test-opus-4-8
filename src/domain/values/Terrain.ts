@@ -62,6 +62,48 @@ export class HillyTerrain implements HeightField {
   }
 }
 
+/** 崖(メサ: 平らな頂上 + 急斜面の側面)の配置・寸法 */
+export interface CliffSpec {
+  /** 頂上の中心(XZ) */
+  x: number;
+  z: number;
+  /** 頂上の半幅・半奥行 [m] */
+  halfWidth: number;
+  halfDepth: number;
+  /** 頂上の高さ [m] */
+  height: number;
+  /** 頂上の縁から地面へ降りる斜面の水平距離 [m](小さいほど急=よじ登り向き) */
+  slopeRun: number;
+}
+
+/**
+ * 既存の高さ場に「崖(メサ)」を重ねる高さ場。
+ * 頂上の矩形内は height、縁から slopeRun の範囲は height→0 へ線形に降りる急斜面、
+ * それ以外は元の地形。`heightAt = max(元の地形, 各メサの高さ)`。
+ * 単層(floorAt なし)なので、急斜面は MovementService のレート制限で「よじ登り」になる。
+ */
+export class CliffField implements HeightField {
+  constructor(
+    private readonly base: HeightField,
+    private readonly cliffs: readonly CliffSpec[],
+  ) {}
+
+  private mesaHeight(c: CliffSpec, x: number, z: number): number {
+    const dx = Math.abs(x - c.x) - c.halfWidth;
+    const dz = Math.abs(z - c.z) - c.halfDepth;
+    const d = Math.max(dx, dz, 0); // 頂上矩形からのはみ出し量
+    if (d <= 0) return c.height; // 頂上
+    if (d >= c.slopeRun) return 0; // 斜面の外
+    return c.height * (1 - d / c.slopeRun); // 斜面(線形)
+  }
+
+  heightAt(x: number, z: number): number {
+    let h = this.base.heightAt(x, z);
+    for (const c of this.cliffs) h = Math.max(h, this.mesaHeight(c, x, z));
+    return h;
+  }
+}
+
 /** 2階建ての家(室内)の床高さ設定 */
 export interface TwoFloorConfig {
   /** 2階(ロフト)の床面の高さ [m] */

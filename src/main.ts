@@ -11,7 +11,7 @@ import { MovementService } from './domain/services/MovementService';
 import { NpcWanderService } from './domain/services/NpcWanderService';
 import { PortalTraversalService } from './domain/services/PortalTraversalService';
 import { Collider } from './domain/values/Collider';
-import { HeightField, HillyTerrain, TwoFloorField } from './domain/values/Terrain';
+import { CliffField, HeightField, HillyTerrain, TwoFloorField } from './domain/values/Terrain';
 import {
   BUBBLE_RANGE,
   DIALOGUE_BREAK_RANGE,
@@ -29,6 +29,7 @@ import {
   PORTAL_HOUSE_WALL_COLLIDER_RADIUS,
   PORTAL_PILLAR_RADIUS,
   portalHouseWallColliderSpots,
+  CLIFF,
   ROOM_WALL_COLLIDER_RADIUS,
   roomWallColliderSpots,
   TWO_FLOOR,
@@ -137,7 +138,7 @@ const FLAT_PORTAL_HOUSE_PLATEAU_RADIUS =
 const buildTerrain = (def: WorldDef): HeightField => {
   // 2階建ての家(室内): 階段+ロフトの高さ場
   if (def.floorKind === 'two-floor') return new TwoFloorField(TWO_FLOOR);
-  return new HillyTerrain(def.terrainAmplitude, [
+  const hilly = new HillyTerrain(def.terrainAmplitude, [
     ...def.portals.map((p) => ({ x: p.x, z: p.z, radius: FLAT_PORTAL_RADIUS })),
     { x: 0, z: 0, radius: FLAT_SPAWN_RADIUS },
     ...(def.house
@@ -155,6 +156,9 @@ const buildTerrain = (def: WorldDef): HeightField => {
       flatRadius: FLAT_PORTAL_HOUSE_PLATEAU_RADIUS,
     })),
   ]);
+  // よじ登れる崖(メサ)を地形に重ねる
+  if (!def.cliff) return hilly;
+  return new CliffField(hilly, [{ x: def.cliff.x, z: def.cliff.z, ...CLIFF }]);
 };
 
 // 家: テレビ・テーブルのインタラクタブルと、壁・家具のコライダー
@@ -320,7 +324,8 @@ const bubbleEl = document.getElementById('bubble');
 const dialogEl = document.getElementById('dialog');
 const dialogTextEl = document.getElementById('dialog-text');
 const glideEl = document.getElementById('glide');
-if (!container || !worldNameEl || !hintEl || !bubbleEl || !dialogEl || !dialogTextEl || !glideEl) {
+const climbEl = document.getElementById('climb');
+if (!container || !worldNameEl || !hintEl || !bubbleEl || !dialogEl || !dialogTextEl || !glideEl || !climbEl) {
   throw new Error('required DOM elements are missing');
 }
 
@@ -379,6 +384,7 @@ function frame(now: number): void {
   }
 
   glideEl!.classList.toggle('visible', session.player.gliding);
+  climbEl!.classList.toggle('visible', session.player.climbing);
   updateInteractionUi();
   renderer.render();
   requestAnimationFrame(frame);

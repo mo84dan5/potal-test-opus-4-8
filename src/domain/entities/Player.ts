@@ -8,6 +8,8 @@ export class Player {
   public airborne = false;
   /** 滑空中か(落下がさらに遅く、ゆっくり水平移動できる)。着地で解除される */
   public gliding = false;
+  /** よじ登り中か(急斜面/崖をゆっくり登っている)。MovementService が毎フレーム更新する */
+  public climbing = false;
 
   constructor(
     public position: Vec3,
