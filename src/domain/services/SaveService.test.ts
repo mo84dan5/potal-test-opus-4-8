@@ -32,11 +32,21 @@ describe('SaveService', () => {
     expect(snap.player).toMatchObject({ x: 1, z: 2, yaw: 0.5, pitch: 0.1 });
   });
 
+  it('capture: アプリ名と保存日時を注入された appName / Clock から採取する', () => {
+    const { session } = build();
+    const clock = { nowIso: () => '2026-06-15T01:02:03.000Z' };
+    const snap = new SaveService('My Game', clock).capture(session);
+    expect(snap.appName).toBe('My Game');
+    expect(snap.savedAt).toBe('2026-06-15T01:02:03.000Z');
+  });
+
   it('restore: スナップショットから復元し、進行中イベントを解除する', () => {
     const { session, prop } = build();
     session.activeEvent = new ActiveEvent({ id: 'x', steps: [{ kind: 'wait', duration: 1 }] });
     const snap: GameSnapshot = {
-      version: 1,
+      version: 2,
+      appName: 'Portal Walk',
+      savedAt: '2026-06-15T00:00:00.000Z',
       worldId: 'night',
       player: { x: 3, y: 0, z: 4, yaw: 1, pitch: 0.2 },
       flags: { seen: true },
@@ -73,7 +83,8 @@ describe('SaveService', () => {
   it('未知のワールドIDの復元は例外になる(改ざん検知)', () => {
     const { session } = build();
     const bad: GameSnapshot = {
-      version: 1, worldId: 'nowhere', player: { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 },
+      version: 2, appName: 'Portal Walk', savedAt: '2026-06-15T00:00:00.000Z',
+      worldId: 'nowhere', player: { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 },
       flags: {}, completedEvents: [], props: {},
     };
     expect(() => new SaveService().restore(session, bad)).toThrow();

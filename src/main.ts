@@ -13,7 +13,9 @@ import { NpcWanderService } from './domain/services/NpcWanderService';
 import { PortalTraversalService } from './domain/services/PortalTraversalService';
 import { EventService } from './domain/services/EventService';
 import { SaveService } from './domain/services/SaveService';
+import { systemClock } from './domain/values/Clock';
 import { Base64JsonSnapshotCodec } from './adapters/persistence/Base64JsonSnapshotCodec';
+import { PngSaveImageCodec } from './adapters/persistence/PngSaveImageCodec';
 import { Collider } from './domain/values/Collider';
 import { CliffField, HeightField, HillyTerrain, TwoFloorField } from './domain/values/Terrain';
 import {
@@ -308,8 +310,10 @@ const interaction = new InteractionService();
 const applyStick = new ApplyStickUseCase(session);
 const startGlide = new StartGlideUseCase(session);
 const eventService = new EventService(movement);
-const saveService = new SaveService();
+const APP_NAME = 'Portal Walk';
+const saveService = new SaveService(APP_NAME, systemClock);
 const snapshotCodec = new Base64JsonSnapshotCodec();
+const imageCodec = new PngSaveImageCodec();
 const applyDash = new ApplyDashUseCase(session, movement);
 const applyLook = new ApplyLookUseCase(session);
 const stopMovement = new StopMovementUseCase(session, movement);
@@ -347,10 +351,15 @@ const saveCopyBtn = document.getElementById('save-copy');
 const saveLoadBtn = document.getElementById('save-load');
 const saveCloseBtn = document.getElementById('save-close');
 const saveStatusEl = document.getElementById('save-status');
+const saveImageBtn = document.getElementById('save-image');
+const saveImageLoadBtn = document.getElementById('save-image-load');
+const saveImagePreviewEl = document.getElementById('save-image-preview') as HTMLImageElement | null;
+const saveImageFileEl = document.getElementById('save-image-file') as HTMLInputElement | null;
 if (
   !container || !worldNameEl || !hintEl || !bubbleEl || !dialogEl || !dialogTextEl ||
   !glideEl || !climbEl || !viewBtn || !saveBtn || !savePanel || !saveCodeEl ||
-  !saveCopyBtn || !saveLoadBtn || !saveCloseBtn || !saveStatusEl
+  !saveCopyBtn || !saveLoadBtn || !saveCloseBtn || !saveStatusEl ||
+  !saveImageBtn || !saveImageLoadBtn || !saveImagePreviewEl || !saveImageFileEl
 ) {
   throw new Error('required DOM elements are missing');
 }
@@ -368,6 +377,8 @@ let savePanelOpen = false;
 const closeSavePanel = (): void => {
   savePanelOpen = false;
   savePanel.classList.remove('visible');
+  saveImagePreviewEl.classList.remove('visible');
+  saveImagePreviewEl.removeAttribute('src');
 };
 // 文字列をクリップボードへコピー(可視テキストエリアは空のまま=貼り付け用に保つ)
 const copyToClipboard = (text: string): Promise<boolean> => {
@@ -393,6 +404,8 @@ saveBtn.addEventListener('click', () => {
   stopMovement.execute(); // パネル中は移動を止める
   saveCodeEl.value = ''; // 空のまま表示(貼り付け=ロード用)。コピーは「コピー」ボタンで
   saveStatusEl.textContent = '';
+  saveImagePreviewEl.classList.remove('visible');
+  saveImagePreviewEl.removeAttribute('src');
   savePanelOpen = true;
   savePanel.classList.add('visible');
 });
@@ -412,6 +425,36 @@ saveLoadBtn.addEventListener('click', () => {
   } catch (e) {
     saveStatusEl.textContent = e instanceof Error ? e.message : 'ロードに失敗しました。';
   }
+});
+// 画像で保存: 現在のスナップショットを画像化してプレビュー表示(長押し/保存で写真へ)
+saveImageBtn.addEventListener('click', () => {
+  const snapshot = saveService.capture(session);
+  const code = snapshotCodec.encode(snapshot);
+  const dataUrl = imageCodec.encode(code, { appName: snapshot.appName, savedAt: snapshot.savedAt });
+  saveImagePreviewEl.src = dataUrl;
+  saveImagePreviewEl.classList.add('visible');
+  saveStatusEl.textContent = '画像を長押しして「写真に追加」で保存できます。';
+});
+// 画像から読込: ファイル選択を促す
+saveImageLoadBtn.addEventListener('click', () => {
+  saveImageFileEl.value = ''; // 同じファイルを連続で選んでも change が発火するように
+  saveImageFileEl.click();
+});
+saveImageFileEl.addEventListener('change', () => {
+  const file = saveImageFileEl.files?.[0];
+  if (!file) return;
+  imageCodec
+    .decode(file)
+    .then((code) => {
+      const snapshot = snapshotCodec.decode(code);
+      saveService.restore(session, snapshot);
+      worldNameEl.textContent = session.currentWorld.name;
+      saveStatusEl.textContent = '画像からロードしました。';
+      closeSavePanel();
+    })
+    .catch((e: unknown) => {
+      saveStatusEl.textContent = e instanceof Error ? e.message : '画像からロードできませんでした。';
+    });
 });
 saveCloseBtn.addEventListener('click', closeSavePanel);
 

@@ -197,6 +197,22 @@
         font-weight: 600;
         cursor: pointer;
       }
+      #save-image-preview {
+        display: none;
+        margin: 10px auto 0;
+        max-width: 100%;
+        image-rendering: pixelated;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        /* 長押しで「写真に保存」を出せるよう、画像だけはコールアウトを許可 */
+        -webkit-touch-callout: default;
+        -webkit-user-select: auto;
+        user-select: auto;
+        pointer-events: auto;
+      }
+      #save-image-preview.visible {
+        display: block;
+      }
       #save-status {
         margin-top: 8px;
         font-size: 12px;
@@ -322,6 +338,17 @@
         <div class="row">
           <button id="save-copy" type="button">コピー</button>
           <button id="save-load" type="button">ロード</button>
+        </div>
+        <div class="hint" style="margin-top: 12px">
+          画像でも保存できます。「画像で保存」で生成→長押し/保存で写真へ。「画像から読込」で写真を選んで復元。
+        </div>
+        <div class="row">
+          <button id="save-image" type="button">画像で保存</button>
+          <button id="save-image-load" type="button">画像から読込</button>
+        </div>
+        <img id="save-image-preview" alt="セーブ画像(長押しで写真に保存)" />
+        <input id="save-image-file" type="file" accept="image/*" hidden />
+        <div class="row">
           <button id="save-close" type="button">閉じる</button>
         </div>
         <div id="save-status"></div>

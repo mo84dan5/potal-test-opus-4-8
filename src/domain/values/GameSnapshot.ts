@@ -1,5 +1,5 @@
 /** セーブデータのフォーマット版(後方互換の判定に使う) */
-export const SNAPSHOT_VERSION = 1;
+export const SNAPSHOT_VERSION = 2;
 
 /**
  * ゲーム状態の直列化スナップショット(セーブ対象)。
@@ -7,6 +7,10 @@ export const SNAPSHOT_VERSION = 1;
  */
 export interface GameSnapshot {
   version: number;
+  /** アプリ名(どのゲームのセーブか。画像のキャプションにも使う) */
+  appName: string;
+  /** 保存日時(ISO 8601 文字列。画像のキャプションにも使う) */
+  savedAt: string;
   /** 現在のワールドID */
   worldId: string;
   /** プレイヤーの姿勢 */
@@ -35,7 +39,12 @@ export interface SnapshotCodec {
 export function isValidSnapshot(value: unknown): value is GameSnapshot {
   if (typeof value !== 'object' || value === null) return false;
   const s = value as Record<string, unknown>;
+  // appName/savedAt は v2 で追加。旧 v1 コードも読めるよう「string か未定義」を許容する(後方互換)
+  const metaOk =
+    (s.appName === undefined || typeof s.appName === 'string') &&
+    (s.savedAt === undefined || typeof s.savedAt === 'string');
   return (
+    metaOk &&
     typeof s.version === 'number' &&
     typeof s.worldId === 'string' &&
     typeof s.player === 'object' &&

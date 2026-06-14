@@ -1,4 +1,5 @@
 import { GameSession } from '../entities/GameSession';
+import { Clock, systemClock } from '../values/Clock';
 import { GameSnapshot, SNAPSHOT_VERSION } from '../values/GameSnapshot';
 import { Vec3 } from '../values/Vec3';
 
@@ -6,8 +7,16 @@ import { Vec3 } from '../values/Vec3';
  * ゲーム状態のスナップショット採取/復元を行うドメインサービス(単一責務)。
  * 文字列化(セーブコード)は SnapshotCodec(ポート)が担い、本サービスは関与しない。
  * three.js / DOM には依存しない。
+ *
+ * アプリ名・保存時刻は外部都合(非決定的)なので、コンストラクタで注入する(DIP)。
+ * これにより本サービスは `new Date()` を直接呼ばず、テストで決定的に検証できる。
  */
 export class SaveService {
+  constructor(
+    private readonly appName = 'Portal Walk',
+    private readonly clock: Clock = systemClock,
+  ) {}
+
   /** 現在のゲーム状態をスナップショットに採取する */
   capture(session: GameSession): GameSnapshot {
     const p = session.player;
@@ -19,6 +28,8 @@ export class SaveService {
     }
     return {
       version: SNAPSHOT_VERSION,
+      appName: this.appName,
+      savedAt: this.clock.nowIso(),
       worldId: session.currentWorldId,
       player: { x: p.position.x, y: p.position.y, z: p.position.z, yaw: p.yaw, pitch: p.pitch },
       flags: Object.fromEntries(session.flags),
