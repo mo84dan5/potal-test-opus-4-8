@@ -29,3 +29,18 @@ export function computeThirdPersonCamera(
   const y = Math.max(raw.y, feet.y + minClearance); // 地面下へ潜らない
   return { position: new Vec3(raw.x, y, raw.z), target };
 }
+
+/**
+ * 3人称カメラの遮蔽回避: 注視点からカメラ希望位置へ向けたレイの最初の交差距離 hitDistance を受け、
+ * 実際のカメラ距離を返す。遮蔽が無い(null)か希望距離より遠いなら希望距離のまま。
+ * 遮蔽があれば交差手前(hitDistance - margin)へ寄せ、近すぎないよう minDist で下限を設ける。
+ */
+export function occludedCameraDistance(
+  desiredDistance: number,
+  hitDistance: number | null,
+  margin = 0.3,
+  minDist = 0.6,
+): number {
+  if (hitDistance === null || hitDistance >= desiredDistance) return desiredDistance;
+  return Math.max(minDist, hitDistance - margin);
+}

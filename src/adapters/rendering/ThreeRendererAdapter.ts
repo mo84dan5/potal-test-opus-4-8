@@ -5,7 +5,7 @@ import { Portal } from '../../domain/entities/Portal';
 import { World } from '../../domain/entities/World';
 import { HeightField } from '../../domain/values/Terrain';
 import { Vec3 } from '../../domain/values/Vec3';
-import { computeThirdPersonCamera } from './cameraView';
+import { computeThirdPersonCamera, occludedCameraDistance } from './cameraView';
 import {
   CLIFF,
   HOUSE,
@@ -64,6 +64,8 @@ export class ThreeRendererAdapter {
   private cameraMode: 'first' | 'third' = 'first';
   /** 3人称時に表示するプレイヤーのアバター(現在ワールドのシーンへ毎フレーム配置) */
   private readonly avatar: THREE.Group;
+  /** 3人称カメラの遮蔽回避用レイキャスタ */
+  private readonly cameraRay = new THREE.Raycaster();
 
   constructor(
     container: HTMLElement,
@@ -124,7 +126,7 @@ export class ThreeRendererAdapter {
   render(): void {
     const world = this.session.currentWorld;
     const view = this.viewOf(world.id);
-    this.syncCamera(this.session.player);
+    this.syncCamera(this.session.player, view.scene);
     this.syncNpcs();
     this.syncAvatar(view.scene);
 
@@ -205,11 +207,24 @@ export class ThreeRendererAdapter {
     return view;
   }
 
-  private syncCamera(player: Player): void {
+  private syncCamera(player: Player, scene: THREE.Scene): void {
     if (this.cameraMode === 'third') {
       const cam = computeThirdPersonCamera(player.position, player.yaw, player.pitch, 4, 1.4);
-      this.camera.position.set(cam.position.x, cam.position.y, cam.position.z);
-      this.camera.lookAt(cam.target.x, cam.target.y, cam.target.z);
+      const target = new THREE.Vector3(cam.target.x, cam.target.y, cam.target.z);
+      const desired = new THREE.Vector3(cam.position.x, cam.position.y, cam.position.z);
+      // 注視点→希望位置へレイを飛ばし、遮蔽物があれば手前へ寄せる
+      const toCam = desired.clone().sub(target);
+      const desiredDist = toCam.length();
+      const dir = toCam.clone().normalize();
+      this.cameraRay.set(target, dir);
+      this.cameraRay.far = desiredDist;
+      // アバター(主人公自身)はレイ対象から除外する
+      const targets = scene.children.filter((c) => c !== this.avatar);
+      const hits = this.cameraRay.intersectObjects(targets, true);
+      const dist = occludedCameraDistance(desiredDist, hits.length ? hits[0].distance : null);
+      const pos = target.clone().addScaledVector(dir, dist);
+      this.camera.position.copy(pos);
+      this.camera.lookAt(target);
       this.camera.updateMatrixWorld();
       return;
     }
