@@ -11,6 +11,7 @@ import {
   PORTAL_HOUSE,
   PortalHouseSpec,
   RoomSpec,
+  TWO_FLOOR,
   WORLD_DEFS,
   WorldObjectSpec,
 } from '../../config/worldContent';
@@ -209,14 +210,18 @@ export class ThreeRendererAdapter {
   private buildWorld(world: World, size: THREE.Vector2): WorldView {
     const scene = new THREE.Scene();
     const def = WORLD_DEFS.find((d) => d.id === world.id);
-    if (def?.interior && def.room) {
+    if (def?.interior && def.floorKind === 'two-floor') {
+      this.buildTwoFloorInterior(scene);
+    } else if (def?.interior && def.room) {
       this.buildRoom(scene, def.room);
     } else {
       this.buildEnvironment(scene, world.id, world.terrain);
     }
     if (def) this.buildObjects(scene, def.objects, world.terrain);
     if (def?.house) this.buildHouse(scene, def.house, world.terrain);
-    if (def?.portalHouse) this.buildPortalHouse(scene, def.portalHouse, world.terrain);
+    for (const ph of def?.portalHouses ?? []) {
+      this.buildPortalHouse(scene, ph, world.terrain);
+    }
 
     const npcMeshes = new Map<string, THREE.Group>();
     world.npcs.forEach((npc, i) => {
@@ -359,6 +364,100 @@ export class ThreeRendererAdapter {
     wall(room.width, t, 0, d); // 奥壁(+Z)
     wall(t, room.depth, -w, 0); // 左壁
     wall(t, room.depth, w, 0); // 右壁
+  }
+
+  /**
+   * 2階建ての家(室内)。1階+右側の階段+奥のロフト(2階)+手すり+家具を描く。
+   * 高さ場(TwoFloorField)と座標を共有するので、見た目と歩ける高さが一致する。
+   */
+  private buildTwoFloorInterior(scene: THREE.Scene): void {
+    const c = TWO_FLOOR;
+    const w = c.width / 2;
+    const d = c.depth / 2;
+    const H = c.height;
+    const FH = c.floorHeight;
+    const t = 0.3; // 壁厚
+
+    scene.background = new THREE.Color(0x20242e);
+    scene.add(new THREE.HemisphereLight(0xfff0d8, 0x2a2630, 0.8));
+    const lamp1 = new THREE.PointLight(0xffe6b8, 1.0, 0, 0);
+    lamp1.position.set(0, FH - 0.4, -2);
+    const lamp2 = new THREE.PointLight(0xffe6b8, 1.0, 0, 0);
+    lamp2.position.set(0, H - 0.5, 3);
+    scene.add(lamp1, lamp2);
+
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0xd8cbb0, side: THREE.DoubleSide });
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0x6b5a45 });
+    const woodMat = new THREE.MeshLambertMaterial({ color: 0x8a6240 });
+    const trimMat = new THREE.MeshLambertMaterial({ color: 0x5a3f28 });
+    const box = (
+      sx: number, sy: number, sz: number,
+      x: number, y: number, z: number,
+      mat: THREE.Material,
+    ): void => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
+      m.position.set(x, y, z);
+      scene.add(m);
+    };
+
+    // 1階の床・天井・四方の壁
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(c.width, c.depth), floorMat);
+    floor.rotateX(-Math.PI / 2);
+    scene.add(floor);
+    const ceil = new THREE.Mesh(
+      new THREE.PlaneGeometry(c.width, c.depth),
+      new THREE.MeshLambertMaterial({ color: 0x342f3c, side: THREE.DoubleSide }),
+    );
+    ceil.rotateX(Math.PI / 2);
+    ceil.position.y = H;
+    scene.add(ceil);
+    box(c.width, H, t, 0, H / 2, -d, wallMat); // 玄関壁
+    box(c.width, H, t, 0, H / 2, d, wallMat); // 奥壁
+    box(t, H, c.depth, -w, H / 2, 0, wallMat); // 左壁
+    box(t, H, c.depth, w, H / 2, 0, wallMat); // 右壁
+
+    // ロフト(2階)の床スラブ: z ∈ [loftFrontZ, d]、上面が FH
+    const loftDepth = d - c.loftFrontZ;
+    box(c.width, 0.2, loftDepth, 0, FH - 0.1, (c.loftFrontZ + d) / 2, floorMat);
+
+    // 階段: 右レーン(x ∈ [stairXMin, w])を z 方向に 0→FH へ昇る段
+    const steps = 12;
+    const run = c.stairZTop - c.stairZBottom;
+    const stepDepth = run / steps;
+    const stairCx = (c.stairXMin + w) / 2;
+    const stairW = w - c.stairXMin;
+    for (let i = 0; i < steps; i++) {
+      const topY = ((i + 1) / steps) * FH;
+      box(
+        stairW, topY, stepDepth,
+        stairCx, topY / 2, c.stairZBottom + (i + 0.5) * stepDepth,
+        woodMat,
+      );
+    }
+
+    // 手すり: ロフト前縁(z=loftFrontZ、階段開口 x>=stairXMin は除く)の上の横バー+支柱
+    const railTop = FH + 0.9;
+    box(w + c.stairXMin, 0.08, 0.08, (-w + c.stairXMin) / 2, railTop, c.loftFrontZ, trimMat);
+    for (let x = -w + 0.3; x <= c.stairXMin - 0.3; x += 1.3) {
+      box(0.08, 0.9, 0.08, x, FH + 0.45, c.loftFrontZ, trimMat);
+    }
+    // 手すり: 階段の開放側(x=stairXMin)。各 z で階段面の高さに合わせた支柱
+    for (let z = c.stairZBottom; z <= c.loftFrontZ - 1e-6; z += 0.8) {
+      const sh = ((z - c.stairZBottom) / run) * FH; // その位置の階段面の高さ
+      box(0.08, 0.9, 0.08, c.stairXMin, sh + 0.45, z, trimMat);
+    }
+
+    // 1階の家具: テーブル(玄関側)
+    const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.07, 18), woodMat);
+    tableTop.position.set(-3.5, 0.74, -3.5);
+    const tableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.7, 8), woodMat);
+    tableLeg.position.set(-3.5, 0.37, -3.5);
+    scene.add(tableTop, tableLeg);
+
+    // 2階の家具: ベッド(ロフト上)
+    box(1.8, 0.4, 2.4, 3.0, FH + 0.2, 4.5, woodMat); // マットレス台
+    box(1.8, 0.5, 0.2, 3.0, FH + 0.55, 5.6, trimMat); // ヘッドボード
+    box(1.6, 0.16, 2.0, 3.0, FH + 0.46, 4.4, new THREE.MeshLambertMaterial({ color: 0xcfd8e6 })); // 布団
   }
 
   /**

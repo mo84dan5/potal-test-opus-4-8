@@ -11,7 +11,7 @@ import { MovementService } from './domain/services/MovementService';
 import { NpcWanderService } from './domain/services/NpcWanderService';
 import { PortalTraversalService } from './domain/services/PortalTraversalService';
 import { Collider } from './domain/values/Collider';
-import { HeightField, HillyTerrain } from './domain/values/Terrain';
+import { HeightField, HillyTerrain, TwoFloorField } from './domain/values/Terrain';
 import {
   BUBBLE_RANGE,
   DIALOGUE_BREAK_RANGE,
@@ -31,6 +31,9 @@ import {
   portalHouseWallColliderSpots,
   ROOM_WALL_COLLIDER_RADIUS,
   roomWallColliderSpots,
+  TWO_FLOOR,
+  TWO_FLOOR_RAILING_RADIUS,
+  twoFloorRailingColliderSpots,
   WORLD_DEFS,
   WorldDef,
   WorldObjectSpec,
@@ -129,8 +132,10 @@ const FLAT_HOUSE_PLATEAU_RADIUS =
 const FLAT_PORTAL_HOUSE_PLATEAU_RADIUS =
   Math.hypot(PORTAL_HOUSE.width / 2, PORTAL_HOUSE.depth / 2) + 0.6;
 
-const buildTerrain = (def: WorldDef): HeightField =>
-  new HillyTerrain(def.terrainAmplitude, [
+const buildTerrain = (def: WorldDef): HeightField => {
+  // 2階建ての家(室内): 階段+ロフトの高さ場
+  if (def.floorKind === 'two-floor') return new TwoFloorField(TWO_FLOOR);
+  return new HillyTerrain(def.terrainAmplitude, [
     ...def.portals.map((p) => ({ x: p.x, z: p.z, radius: FLAT_PORTAL_RADIUS })),
     { x: 0, z: 0, radius: FLAT_SPAWN_RADIUS },
     ...(def.house
@@ -141,15 +146,14 @@ const buildTerrain = (def: WorldDef): HeightField =>
           flatRadius: FLAT_HOUSE_PLATEAU_RADIUS,
         }]
       : []),
-    ...(def.portalHouse
-      ? [{
-          x: def.portalHouse.x,
-          z: def.portalHouse.z,
-          radius: FLAT_HOUSE_RADIUS,
-          flatRadius: FLAT_PORTAL_HOUSE_PLATEAU_RADIUS,
-        }]
-      : []),
+    ...(def.portalHouses ?? []).map((ph) => ({
+      x: ph.x,
+      z: ph.z,
+      radius: FLAT_HOUSE_RADIUS,
+      flatRadius: FLAT_PORTAL_HOUSE_PLATEAU_RADIUS,
+    })),
   ]);
+};
 
 // 家: テレビ・テーブルのインタラクタブルと、壁・家具のコライダー
 const houseInteractables = (def: WorldDef): Interactable[] => {
@@ -186,13 +190,21 @@ const houseColliders = (def: WorldDef): Collider[] => {
   ];
 };
 
-// 室内ワールド型の家(外観小屋)の壁コライダー(+Z面のドア開口=ポータルは通過可能)
-const portalHouseColliders = (def: WorldDef): Collider[] => {
-  if (!def.portalHouse) return [];
-  const { x: hx, z: hz } = def.portalHouse;
-  return portalHouseWallColliderSpots(hx, hz).map((s) => ({
+// 室内ワールド型の家(外観小屋)の壁コライダー(+Z面のドア開口=ポータルは通過可能)。複数棟対応
+const portalHouseColliders = (def: WorldDef): Collider[] =>
+  (def.portalHouses ?? []).flatMap((ph) =>
+    portalHouseWallColliderSpots(ph.x, ph.z).map((s) => ({
+      position: new Vec3(s.x, 0, s.z),
+      radius: PORTAL_HOUSE_WALL_COLLIDER_RADIUS,
+    })),
+  );
+
+// 2階建ての家(室内)の手すりコライダー: 段差の縁からの転落を防ぐ
+const twoFloorRailingColliders = (def: WorldDef): Collider[] => {
+  if (def.floorKind !== 'two-floor') return [];
+  return twoFloorRailingColliderSpots().map((s) => ({
     position: new Vec3(s.x, 0, s.z),
-    radius: PORTAL_HOUSE_WALL_COLLIDER_RADIUS,
+    radius: TWO_FLOOR_RAILING_RADIUS,
   }));
 };
 
@@ -256,6 +268,7 @@ const buildWorld = (def: WorldDef): World => {
       ...houseColliders(def),
       ...portalHouseColliders(def),
       ...roomColliders(def),
+      ...twoFloorRailingColliders(def),
       ...portals.flatMap(portalPillarColliders),
       ...portals.flatMap(doorBlockerColliders),
       ...npcs.map((n) => n.collider),

@@ -190,6 +190,42 @@ export function roomWallColliderSpots(
   return spots;
 }
 
+/**
+ * 2階建ての家(室内)の寸法・床高さ設定。部屋中心が原点。
+ * 1階(h=0)/ 右レーンの階段(0→floorHeight)/ 奥側のロフト(z>=loftFrontZ, h=floorHeight)。
+ */
+export const TWO_FLOOR = {
+  width: 14,
+  depth: 14,
+  height: 6.2,
+  floorHeight: 3.0,
+  loftFrontZ: 0, // z>=0 はロフト(2階)
+  stairXMin: 3.5, // x>=3.5 が階段レーン(右壁との間)
+  stairZBottom: -4, // 階段下端(h=0)
+  stairZTop: 0, // 階段上端(h=floorHeight)=ロフト前縁
+} as const;
+
+/**
+ * 2階建ての家の手すりコライダー位置(XZ・部屋中心が原点)。
+ * ロフト前縁(z=loftFrontZ, 階段開口 x>=stairXMin は除く)と、階段の開放側(x=stairXMin)に並べ、
+ * 段差からの転落(瞬間降下)を防ぐ。階段の登り口だけ開けておく。
+ */
+export const TWO_FLOOR_RAILING_RADIUS = 0.3;
+export function twoFloorRailingColliderSpots(): Array<{ x: number; z: number }> {
+  const spots: Array<{ x: number; z: number }> = [];
+  const w = TWO_FLOOR.width / 2;
+  const step = 0.6;
+  // ロフト前縁(階段開口=右側 x>=stairXMin は空ける)
+  for (let x = -w; x <= TWO_FLOOR.stairXMin + 1e-6; x += step) {
+    spots.push({ x, z: TWO_FLOOR.loftFrontZ });
+  }
+  // 階段の開放側(左側)に沿った手すり
+  for (let z = TWO_FLOOR.stairZBottom; z <= TWO_FLOOR.loftFrontZ - step + 1e-6; z += step) {
+    spots.push({ x: TWO_FLOOR.stairXMin, z });
+  }
+  return spots;
+}
+
 export interface WorldDef {
   id: string;
   name: string;
@@ -198,12 +234,14 @@ export interface WorldDef {
   npcs: NpcSpec[];
   /** 家(入れる建物)。ドアは +Z 向き */
   house?: HouseSpec;
-  /** 室内ワールド型の家(外観の小屋)。ドア中央のポータルで room ワールドへ飛ぶ */
-  portalHouse?: PortalHouseSpec;
+  /** 室内ワールド型の家(外観の小屋)。複数可。各ドアのポータルで room ワールドへ飛ぶ */
+  portalHouses?: PortalHouseSpec[];
   /** このワールドが室内(囲まれた部屋)である場合の寸法。指定時は屋外環境を描かない */
   room?: RoomSpec;
   /** 室内ワールドか(屋外の空・地面・地形を描かない) */
   interior?: boolean;
+  /** 室内の床種別。'two-floor' は階段+ロフト(2階)の高さ場を割り当てる */
+  floorKind?: 'two-floor';
   /** 地形起伏の振幅 [m] */
   terrainAmplitude: number;
 }
@@ -256,6 +294,8 @@ export const WORLD_DEFS: WorldDef[] = [
       { id: 'day-snow', x: 12, z: 2, yaw: -Math.PI / 2, targetWorldId: 'snow', targetPortalId: 'snow-day', frameColor: 0x9adcff },
       // 室内ワールド型の家の扉(小屋 (10,-13) の +Z 面中央 = z -13 + depth/2)。タップで入室する固い扉
       { id: 'day-grandhall', x: 10, z: -10.5, yaw: 0, targetWorldId: 'grand-hall', targetPortalId: 'grandhall-day', frameColor: 0xffd24d, kind: 'door' },
+      // 2階建ての家の扉(小屋 (-16,-2) の +Z 面中央 = z -2 + depth/2)。タップで入室
+      { id: 'day-twofloor', x: -16, z: 0.5, yaw: 0, targetWorldId: 'two-floor-house', targetPortalId: 'twofloor-day', frameColor: 0xc69a5b, kind: 'door' },
     ],
     npcs: [
       {
@@ -288,8 +328,11 @@ export const WORLD_DEFS: WorldDef[] = [
       },
     ],
     house: { x: -10, z: -13 },
-    // 入ると広大な室内ワールド「大広間」へ飛ぶ小屋(ドアは +Z 向き)
-    portalHouse: { x: 10, z: -13 },
+    // 入ると別の室内ワールドへ飛ぶ小屋(ドアは +Z 向き)。大広間と2階建ての家の2棟
+    portalHouses: [
+      { x: 10, z: -13 }, // 大広間(grand-hall)
+      { x: -16, z: -2 }, // 2階建ての家(two-floor-house)
+    ],
   },
   {
     id: 'night',
@@ -429,6 +472,33 @@ export const WORLD_DEFS: WorldDef[] = [
           'ようこそ、小さな扉の向こうの「大広間」へ。外から見たより、ずっと広いだろう?',
           'この広間は扉とつながっているだけ。空も地面もない、不思議な部屋さ。',
           '玄関の光る扉をくぐれば、もとの昼の世界へ戻れるよ。',
+        ],
+      },
+    ],
+  },
+  {
+    // 室内ワールド: 2階建ての家。右側の階段でロフト(2階)へ登れる。
+    // floorKind='two-floor' で TwoFloorField(階段+ロフトの高さ場)が割り当てられる。
+    id: 'two-floor-house',
+    interior: true,
+    floorKind: 'two-floor',
+    terrainAmplitude: 0,
+    name: '2階建ての家',
+    room: { width: TWO_FLOOR.width, depth: TWO_FLOOR.depth, height: TWO_FLOOR.height },
+    objects: [],
+    portals: [
+      // 玄関(戻り)扉。玄関壁(z=-7)の手前・1階(h=0)に立つ。タップで昼の世界へ出る
+      { id: 'twofloor-day', x: 0, z: -6, yaw: 0, targetWorldId: 'day', targetPortalId: 'day-twofloor', frameColor: 0xc69a5b, kind: 'door' },
+    ],
+    npcs: [
+      {
+        // 2階(ロフト)に立つ住人。z>=0 なので高さ場で h=floorHeight に乗る
+        x: -3, z: 4, name: '2階の住人', color: 0x5a8ac2, wanderRadius: 0, yaw: Math.PI,
+        bubble: 'よく上ってきたね',
+        dialogue: [
+          'いらっしゃい。ここは2階(ロフト)だよ。右の階段で上ってきたんだね。',
+          '手すりから1階を見下ろせる。落ちないように気をつけて。',
+          '玄関の扉をタップすれば、昼の世界へ戻れるよ。',
         ],
       },
     ],

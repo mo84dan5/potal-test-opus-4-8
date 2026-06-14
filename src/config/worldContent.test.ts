@@ -8,6 +8,8 @@ import {
   portalHouseWallColliderSpots,
   ROOM_WALL_COLLIDER_RADIUS,
   roomWallColliderSpots,
+  TWO_FLOOR,
+  twoFloorRailingColliderSpots,
   WORLD_DEFS,
 } from './worldContent';
 
@@ -105,16 +107,32 @@ describe('WORLD_DEFS のポータル整合性', () => {
     expect(day.portals.find((p) => p.id === 'day-night')!.kind).toBeUndefined();
   });
 
-  it('portalHouse のドア位置(+Z面中央)にポータルが立っている', () => {
+  it('各 portalHouse のドア位置(+Z面中央)にポータルが立っている', () => {
     for (const def of WORLD_DEFS) {
-      if (!def.portalHouse) continue;
-      const doorX = def.portalHouse.x;
-      const doorZ = def.portalHouse.z + PORTAL_HOUSE.depth / 2;
-      const door = def.portals.find(
-        (p) => Math.abs(p.x - doorX) < 1e-6 && Math.abs(p.z - doorZ) < 1e-6,
-      );
-      expect(door, `${def.id} のドアポータル`).toBeDefined();
+      for (const ph of def.portalHouses ?? []) {
+        const doorX = ph.x;
+        const doorZ = ph.z + PORTAL_HOUSE.depth / 2;
+        const door = def.portals.find(
+          (p) => Math.abs(p.x - doorX) < 1e-6 && Math.abs(p.z - doorZ) < 1e-6,
+        );
+        expect(door, `${def.id} の小屋(${ph.x},${ph.z})のドアポータル`).toBeDefined();
+      }
     }
+  });
+
+  it('2階建ての家(two-floor-house)が存在し、室内・two-floor 床・部屋寸法を持つ', () => {
+    const house = byId.get('two-floor-house');
+    expect(house).toBeDefined();
+    expect(house!.interior).toBe(true);
+    expect(house!.floorKind).toBe('two-floor');
+    expect(house!.terrainAmplitude).toBe(0);
+    expect(house!.room).toBeDefined();
+  });
+
+  it('昼の世界に2階建ての家の扉(day-twofloor)と小屋2棟がある', () => {
+    const day = byId.get('day')!;
+    expect(day.portals.find((p) => p.id === 'day-twofloor')!.kind).toBe('door');
+    expect(day.portalHouses!.length).toBe(2);
   });
 });
 
@@ -184,5 +202,24 @@ describe('roomWallColliderSpots(室内ワールドの壁)', () => {
         2 * (ROOM_WALL_COLLIDER_RADIUS + 0.35),
       );
     }
+  });
+});
+
+describe('twoFloorRailingColliderSpots(2階の手すり)', () => {
+  const spots = twoFloorRailingColliderSpots();
+
+  it('ロフト前縁(z=loftFrontZ)の手すりは階段開口(x>=stairXMin)を除いて並ぶ', () => {
+    const front = spots.filter((s) => Math.abs(s.z - TWO_FLOOR.loftFrontZ) < 1e-6);
+    expect(front.length).toBeGreaterThan(0);
+    // 階段の登り口より右(x>stairXMin)には手すりを置かない(そこから2階へ上がる)
+    expect(front.every((s) => s.x <= TWO_FLOOR.stairXMin + 1e-6)).toBe(true);
+    // 左端(壁際)まで覆う
+    expect(Math.min(...front.map((s) => s.x))).toBeLessThanOrEqual(-TWO_FLOOR.width / 2 + 1e-6);
+  });
+
+  it('階段の開放側(x=stairXMin)に支柱が縦に並ぶ', () => {
+    const side = spots.filter((s) => Math.abs(s.x - TWO_FLOOR.stairXMin) < 1e-6);
+    expect(side.length).toBeGreaterThan(0);
+    expect(side.every((s) => s.z >= TWO_FLOOR.stairZBottom - 1e-6 && s.z <= TWO_FLOOR.loftFrontZ)).toBe(true);
   });
 });

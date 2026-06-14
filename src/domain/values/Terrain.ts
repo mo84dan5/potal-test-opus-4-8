@@ -55,3 +55,39 @@ export class HillyTerrain implements HeightField {
     return h;
   }
 }
+
+/** 2階建ての家(室内)の床高さ設定 */
+export interface TwoFloorConfig {
+  /** 2階(ロフト)の床面の高さ [m] */
+  floorHeight: number;
+  /** これ以上(z >= loftFrontZ)はロフト(2階) */
+  loftFrontZ: number;
+  /** 階段レーンの x 下限(x >= stairXMin が階段) */
+  stairXMin: number;
+  /** 階段の傾斜が始まる z(下端, h=0) */
+  stairZBottom: number;
+  /** 階段の傾斜が終わる z(上端, h=floorHeight)。通常 loftFrontZ と一致 */
+  stairZTop: number;
+}
+
+/**
+ * 2階建ての家の床高さ場。
+ * - z >= loftFrontZ: ロフト(2階, h=floorHeight)
+ * - 階段レーン(x >= stairXMin かつ stairZBottom <= z < stairZTop): z に沿って 0→floorHeight に傾斜
+ * - それ以外: 1階(h=0)
+ * 段差の縁(ロフト前縁・階段の開放側)は手すりコライダーで塞ぐ前提(本クラスは高さのみ担当)。
+ */
+export class TwoFloorField implements HeightField {
+  constructor(private readonly c: TwoFloorConfig) {}
+
+  heightAt(x: number, z: number): number {
+    const c = this.c;
+    if (z >= c.loftFrontZ) return c.floorHeight; // ロフト(2階)
+    if (x >= c.stairXMin && z >= c.stairZBottom && z < c.stairZTop) {
+      const run = c.stairZTop - c.stairZBottom;
+      const t = run > 0 ? (z - c.stairZBottom) / run : 1; // 0(下端)→1(上端)
+      return t * c.floorHeight; // 階段ランプ
+    }
+    return 0; // 1階
+  }
+}
