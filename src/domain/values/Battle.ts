@@ -3,6 +3,8 @@
  * 戦闘は副作用ゼロの独立ドメインで、ワールドの進行状態(flags/completedEvents)には触れない。
  */
 
+import { Technique } from './Combat';
+
 /** 戦闘の画面フェーズ。intro→select→fight→result→outro の順に遷移する */
 export type BattlePhase =
   | 'intro' // 戦闘開始画面(相手の画像・意気込み・地形)
@@ -14,15 +16,17 @@ export type BattlePhase =
 /** 戦闘結果(主人公側から見た勝敗) */
 export type BattleOutcome = 'win' | 'lose';
 
-/** 選択可能なキャラクター(メイン/サポート候補) */
+/** 選択可能なキャラクター(メイン/サポート候補)。3種の技を持つ */
 export interface BattleCharacter {
   readonly id: string;
   readonly name: string;
   /** アバター代わりの表示色(画像が無い間のプレースホルダ) */
   readonly color: number;
+  /** 3種類の技(上/右/左フリックに対応)。アクション戦闘で使う */
+  readonly techniques: readonly [Technique, Technique, Technique];
 }
 
-/** 対戦相手の情報(開始画面・終了画面で使う) */
+/** 対戦相手の情報(開始画面・終了画面・アクション戦闘で使う) */
 export interface Opponent {
   readonly name: string;
   /** アバター代わりの表示色(キャラ画像のプレースホルダ) */
@@ -35,6 +39,8 @@ export interface Opponent {
   readonly winComment: string;
   /** 終了画面: 主人公が負けたときの相手の一言 */
   readonly loseComment: string;
+  /** 相手の3種の技 */
+  readonly techniques: readonly [Technique, Technique, Technique];
 }
 
 /** 戦闘定義。NpcSpec.battleId から参照する */
@@ -45,11 +51,3 @@ export interface BattleDefinition {
   readonly roster: readonly BattleCharacter[];
 }
 
-/** 戦闘開始時のHP(主人公側・相手側とも) */
-export const BATTLE_MAX_HP = 100;
-/** 仮実装: 1回の攻撃で相手に与えるダメージ */
-export const PLAYER_ATTACK = 16;
-/** 仮実装: 相手の反撃で主人公が受けるダメージ */
-export const ENEMY_ATTACK = 12;
-/** サポートキャラを編成しているときの攻撃力ボーナス */
-export const SUPPORT_BONUS = 6;

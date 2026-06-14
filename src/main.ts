@@ -20,6 +20,7 @@ import { BattleService } from './domain/services/BattleService';
 import { BattleSession } from './domain/entities/BattleSession';
 import { ChoicePrompt } from './domain/values/Choice';
 import { BattleOverlayAdapter } from './adapters/ui/BattleOverlayAdapter';
+import { BattleArenaAdapter } from './adapters/ui/BattleArenaAdapter';
 import { ChoiceOverlayAdapter } from './adapters/ui/ChoiceOverlayAdapter';
 import { Collider } from './domain/values/Collider';
 import { CliffField, HeightField, HillyTerrain, TwoFloorField } from './domain/values/Terrain';
@@ -481,7 +482,8 @@ saveCloseBtn.addEventListener('click', closeSavePanel);
 
 // --- 戦闘 / 選択肢オーバーレイ ---
 // 戦闘終了で activeBattle を解除し、元の世界へ戻す(進行状況・フラグは不変)
-const battleOverlay = new BattleOverlayAdapter(battleOverlayEl, battleService, () => {
+const battleArena = new BattleArenaAdapter();
+const battleOverlay = new BattleOverlayAdapter(battleOverlayEl, battleService, battleArena, () => {
   session.activeBattle = null;
 });
 // 「はい/いいえ」の選択。'battle:<id>' なら戦闘開始、それ以外は閉じるだけ(振る舞いはここで解釈)

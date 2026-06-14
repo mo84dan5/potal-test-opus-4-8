@@ -1,6 +1,6 @@
 import { BattleSession } from '../../domain/entities/BattleSession';
 import { BattleService } from '../../domain/services/BattleService';
-import { BATTLE_MAX_HP, BattleCharacter } from '../../domain/values/Battle';
+import { BattleArenaAdapter } from './BattleArenaAdapter';
 
 /** 0xRRGGBB を CSS の #rrggbb に変換 */
 function colorCss(n: number): string {
@@ -19,6 +19,8 @@ export class BattleOverlayAdapter {
   constructor(
     private readonly root: HTMLElement,
     private readonly service: BattleService,
+    /** fight フェーズのアクション戦闘を担うアリーナ(DIP) */
+    private readonly arena: BattleArenaAdapter,
     /** 戦闘を閉じて元の世界へ戻すコールバック(activeBattle の解除はここで行う) */
     private readonly onExit: () => void,
   ) {}
@@ -132,37 +134,20 @@ export class BattleOverlayAdapter {
     });
   }
 
-  private hpBar(label: string, hp: number, color: number): string {
-    const pct = Math.round((hp / BATTLE_MAX_HP) * 100);
-    return `<div class="bt-hp-row">
-        <span class="bt-hp-label">${label}</span>
-        <span class="bt-hp-track"><span class="bt-hp-fill" style="width:${pct}%;background:${colorCss(
-          color,
-        )}"></span></span>
-        <span class="bt-hp-num">${hp}</span>
-      </div>`;
-  }
-
-  // --- 戦闘画面(1対1アクション・仮実装)---
+  // --- 戦闘画面(1対1アクションバトル。アリーナへ委譲)---
   private renderFight(s: BattleSession): void {
-    const main = s.character(s.mainId) as BattleCharacter;
-    const o = s.def.opponent;
-    const card = this.setCard(`
-      <div class="bt-phase">バトル!(仮)</div>
-      <div class="bt-fight">
-        <div class="bt-side">${this.avatar(main.name, main.color, 80)}<div class="bt-name">${
-          main.name
-        }</div></div>
-        <div class="bt-vs">VS</div>
-        <div class="bt-side">${this.avatar(o.name, o.color, 80)}<div class="bt-name">${
-          o.name
-        }</div></div>
-      </div>
-      ${this.hpBar('みかた', s.playerHp, 0x4cd964)}
-      ${this.hpBar('あいて', s.enemyHp, 0xff6b6b)}
-      <button class="bt-primary" type="button">こうげき</button>`);
-    this.button(card, '.bt-primary', () => {
-      this.service.attack(s);
+    const main = s.character(s.mainId);
+    if (!main) {
+      // 安全策: メイン未選択ならキャラ選択へ戻す
+      s.phase = 'select';
+      this.render();
+      return;
+    }
+    // アリーナ用にオーバーレイ全面をホストにする
+    this.root.innerHTML = '<div class="bt-arena-host"></div>';
+    const host = this.root.querySelector('.bt-arena-host') as HTMLElement;
+    this.arena.start(host, main, s.def.opponent, s.supportId !== null, (outcome) => {
+      this.service.finishFight(s, outcome);
       this.render();
     });
   }

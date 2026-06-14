@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { BattleSession } from '../entities/BattleSession';
-import {
-  BattleDefinition,
-  BATTLE_MAX_HP,
-  ENEMY_ATTACK,
-  PLAYER_ATTACK,
-  SUPPORT_BONUS,
-} from '../values/Battle';
+import { BattleDefinition } from '../values/Battle';
+import { Technique } from '../values/Combat';
 import { BattleService } from './BattleService';
+
+const trio: readonly [Technique, Technique, Technique] = [
+  { name: 't0', range: 2, damage: 5, windup: 0.3, recovery: 0.3 },
+  { name: 't1', range: 2, damage: 5, windup: 0.3, recovery: 0.3 },
+  { name: 't2', range: 2, damage: 5, windup: 0.3, recovery: 0.3 },
+];
 
 const def: BattleDefinition = {
   id: 'duel',
@@ -18,11 +19,12 @@ const def: BattleDefinition = {
     terrainName: '草原',
     winComment: 'まいった',
     loseComment: 'よわいな',
+    techniques: trio,
   },
   roster: [
-    { id: 'a', name: 'A', color: 1 },
-    { id: 'b', name: 'B', color: 2 },
-    { id: 'c', name: 'C', color: 3 },
+    { id: 'a', name: 'A', color: 1, techniques: trio },
+    { id: 'b', name: 'B', color: 2, techniques: trio },
+    { id: 'c', name: 'C', color: 3, techniques: trio },
   ],
 };
 
@@ -68,41 +70,19 @@ describe('BattleService', () => {
     expect(s.mainId).toBeNull();
   });
 
-  it('攻撃で相手HPが減り、相手の反撃で自分のHPも減る', () => {
+  it('finishFight: アクション戦闘の決着で結果フェーズへ進む', () => {
     const { s, svc } = make();
     s.phase = 'fight';
-    svc.attack(s);
-    expect(s.enemyHp).toBe(BATTLE_MAX_HP - PLAYER_ATTACK);
-    expect(s.playerHp).toBe(BATTLE_MAX_HP - ENEMY_ATTACK);
-  });
-
-  it('サポート編成時は攻撃力にボーナスが乗る', () => {
-    const { s, svc } = make();
-    s.phase = 'fight';
-    s.supportId = 'b';
-    svc.attack(s);
-    expect(s.enemyHp).toBe(BATTLE_MAX_HP - (PLAYER_ATTACK + SUPPORT_BONUS));
-  });
-
-  it('相手HPが0で勝利、結果フェーズへ(反撃は受けない)', () => {
-    const { s, svc } = make();
-    s.phase = 'fight';
-    s.enemyHp = 1;
-    svc.attack(s);
-    expect(s.enemyHp).toBe(0);
+    svc.finishFight(s, 'win');
     expect(s.outcome).toBe('win');
     expect(s.phase).toBe('result');
-    expect(s.playerHp).toBe(BATTLE_MAX_HP); // 勝った瞬間は反撃されない
   });
 
-  it('自分HPが0で敗北、結果フェーズへ', () => {
+  it('finishFight: fight 以外では何も起きない', () => {
     const { s, svc } = make();
-    s.phase = 'fight';
-    s.enemyHp = BATTLE_MAX_HP; // 倒しきれない
-    s.playerHp = 1;
-    svc.attack(s);
-    expect(s.outcome).toBe('lose');
-    expect(s.phase).toBe('result');
+    svc.finishFight(s, 'lose'); // intro のまま
+    expect(s.outcome).toBeNull();
+    expect(s.phase).toBe('intro');
   });
 
   it('result→outro→終了(isFinished)', () => {
@@ -112,12 +92,5 @@ describe('BattleService', () => {
     svc.toOutro(s);
     expect(s.phase).toBe('outro');
     expect(svc.isFinished(s)).toBe(true);
-  });
-
-  it('fight 以外では攻撃しても何も起きない', () => {
-    const { s, svc } = make();
-    svc.attack(s); // intro のまま
-    expect(s.enemyHp).toBe(BATTLE_MAX_HP);
-    expect(s.playerHp).toBe(BATTLE_MAX_HP);
   });
 });

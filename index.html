@@ -99,7 +99,8 @@
         user-select: none;
         -webkit-user-select: none;
         -webkit-touch-callout: none;
-        z-index: 10;
+        /* 戦闘オーバーレイ(z:50)より前に出す。通常時もHUDの上で問題ない */
+        z-index: 60;
       }
       .stick-base {
         width: 140px;
@@ -297,6 +298,16 @@
         padding: 22px 20px;
         text-align: center;
       }
+      #battle-overlay .bt-arena-host {
+        width: 100%;
+        height: 100%;
+      }
+      #battle-overlay .bt-arena-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
       #battle-overlay .bt-phase {
         font-size: 18px;
         font-weight: 800;
@@ -396,50 +407,6 @@
         font-size: 13px;
         opacity: 0.9;
         margin-bottom: 4px;
-      }
-      #battle-overlay .bt-fight {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-        margin-bottom: 18px;
-      }
-      #battle-overlay .bt-vs {
-        font-size: 20px;
-        font-weight: 800;
-        opacity: 0.8;
-      }
-      #battle-overlay .bt-hp-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: 6px auto;
-        max-width: 420px;
-      }
-      #battle-overlay .bt-hp-label {
-        width: 56px;
-        text-align: left;
-        font-size: 12px;
-        opacity: 0.85;
-      }
-      #battle-overlay .bt-hp-track {
-        flex: 1;
-        height: 12px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.14);
-        overflow: hidden;
-      }
-      #battle-overlay .bt-hp-fill {
-        display: block;
-        height: 100%;
-        border-radius: 999px;
-        transition: width 0.2s;
-      }
-      #battle-overlay .bt-hp-num {
-        width: 34px;
-        text-align: right;
-        font-size: 12px;
-        font-variant-numeric: tabular-nums;
       }
       #battle-overlay .bt-result {
         padding: 20px 0;

@@ -1,4 +1,4 @@
-import { BattleDefinition, BattleOutcome, BattlePhase, BATTLE_MAX_HP } from '../values/Battle';
+import { BattleDefinition, BattleOutcome, BattlePhase } from '../values/Battle';
 
 /**
  * 進行中の戦闘の状態(フェーズ・編成・HP・結果)。
@@ -11,10 +11,8 @@ export class BattleSession {
   mainId: string | null = null;
   /** 選んだサポートキャラID */
   supportId: string | null = null;
-  /** 決着した結果(未決着なら null) */
+  /** 決着した結果(未決着なら null)。実HPはアクション戦闘(CombatArena)が持つ */
   outcome: BattleOutcome | null = null;
-  playerHp = BATTLE_MAX_HP;
-  enemyHp = BATTLE_MAX_HP;
 
   constructor(public readonly def: BattleDefinition) {}
 

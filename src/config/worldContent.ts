@@ -8,6 +8,7 @@
  */
 import { GameEvent } from '../domain/values/EventScript';
 import { BattleDefinition } from '../domain/values/Battle';
+import { TECH_POWER, TECH_RANGED, TECH_SWIFT } from '../domain/values/Combat';
 
 export interface WorldObjectSpec {
   kind: 'tree' | 'rock' | 'crystal' | 'ice' | 'pillar';
@@ -623,18 +624,19 @@ export const BATTLES: Record<string, BattleDefinition> = {
       terrainName: '昼の草原',
       winComment: 'やるな…完敗だ。また勝負しよう!',
       loseComment: 'ふっ、まだまだ修行が足りないな。',
+      techniques: TECH_POWER,
     },
-    // 選べる9体(メイン+サポート)
+    // 選べる9体(メイン+サポート)。技トリオ(速攻/剛力/遠隔)を循環で割り当て個性を出す
     roster: [
-      { id: 'c1', name: 'アカ', color: 0xe2524a },
-      { id: 'c2', name: 'ミドリ', color: 0x4caf6a },
-      { id: 'c3', name: 'アオ', color: 0x4a86e2 },
-      { id: 'c4', name: 'キイ', color: 0xe2c84a },
-      { id: 'c5', name: 'モモ', color: 0xe27ab5 },
-      { id: 'c6', name: 'ソラ', color: 0x4ac8e2 },
-      { id: 'c7', name: 'ムラサキ', color: 0x9a5fd3 },
-      { id: 'c8', name: 'ダイダイ', color: 0xe2954a },
-      { id: 'c9', name: 'クロ', color: 0x444a5a },
+      { id: 'c1', name: 'アカ', color: 0xe2524a, techniques: TECH_SWIFT },
+      { id: 'c2', name: 'ミドリ', color: 0x4caf6a, techniques: TECH_POWER },
+      { id: 'c3', name: 'アオ', color: 0x4a86e2, techniques: TECH_RANGED },
+      { id: 'c4', name: 'キイ', color: 0xe2c84a, techniques: TECH_SWIFT },
+      { id: 'c5', name: 'モモ', color: 0xe27ab5, techniques: TECH_POWER },
+      { id: 'c6', name: 'ソラ', color: 0x4ac8e2, techniques: TECH_RANGED },
+      { id: 'c7', name: 'ムラサキ', color: 0x9a5fd3, techniques: TECH_SWIFT },
+      { id: 'c8', name: 'ダイダイ', color: 0xe2954a, techniques: TECH_POWER },
+      { id: 'c9', name: 'クロ', color: 0x444a5a, techniques: TECH_RANGED },
     ],
   },
 };
