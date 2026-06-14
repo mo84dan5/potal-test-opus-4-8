@@ -369,24 +369,38 @@ const closeSavePanel = (): void => {
   savePanelOpen = false;
   savePanel.classList.remove('visible');
 };
+// 文字列をクリップボードへコピー(可視テキストエリアは空のまま=貼り付け用に保つ)
+const copyToClipboard = (text: string): Promise<boolean> => {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).then(() => true, () => false);
+  }
+  try {
+    const tmp = document.createElement('textarea');
+    tmp.value = text;
+    tmp.style.position = 'fixed';
+    tmp.style.opacity = '0';
+    document.body.appendChild(tmp);
+    tmp.select();
+    const ok = document.execCommand('copy');
+    tmp.remove();
+    return Promise.resolve(ok);
+  } catch {
+    return Promise.resolve(false);
+  }
+};
 saveBtn.addEventListener('click', () => {
   if (session.activeEvent) return; // イベント中は不可
   stopMovement.execute(); // パネル中は移動を止める
-  saveCodeEl.value = snapshotCodec.encode(saveService.capture(session));
+  saveCodeEl.value = ''; // 空のまま表示(貼り付け=ロード用)。コピーは「コピー」ボタンで
   saveStatusEl.textContent = '';
   savePanelOpen = true;
   savePanel.classList.add('visible');
 });
 saveCopyBtn.addEventListener('click', () => {
-  saveCodeEl.select();
-  const done = (ok: boolean): void => {
-    saveStatusEl.textContent = ok ? 'コピーしました。' : '選択してコピーしてください。';
-  };
-  if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(saveCodeEl.value).then(() => done(true), () => done(false));
-  } else {
-    done(document.execCommand('copy'));
-  }
+  const code = snapshotCodec.encode(saveService.capture(session));
+  copyToClipboard(code).then((ok) => {
+    saveStatusEl.textContent = ok ? 'コードをコピーしました。' : 'コピーに失敗しました。';
+  });
 });
 saveLoadBtn.addEventListener('click', () => {
   try {
