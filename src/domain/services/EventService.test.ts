@@ -125,6 +125,32 @@ describe('EventService', () => {
     expect(session.activeEvent).toBeNull();
   });
 
+  it('setFlag: フラグを立てて即座に次へ進む', () => {
+    const { session, svc } = build({
+      id: 'e',
+      steps: [
+        { kind: 'setFlag', flag: 'opened' },
+        { kind: 'say', text: 'done', duration: 1 },
+      ],
+    });
+    svc.tick(session, 0.016); // setFlag を即消化し say を表示
+    expect(session.flags.get('opened')).toBe(true);
+    expect(session.eventMessage).toBe('done');
+  });
+
+  it('when: 条件を満たさないステップはスキップされる', () => {
+    const { session, svc } = build({
+      id: 'e',
+      steps: [
+        { kind: 'say', text: '初回', duration: 1, when: { kind: 'not', cond: { kind: 'flag', flag: 'guided' } } },
+        { kind: 'say', text: '2回目', duration: 1, when: { kind: 'flag', flag: 'guided' } },
+      ],
+    });
+    session.flags.set('guided', true); // 2回目の分岐
+    svc.tick(session, 0.016);
+    expect(session.eventMessage).toBe('2回目'); // 初回 say はスキップされる
+  });
+
   it('進行中イベントが無ければ何もしない', () => {
     const { session, svc } = build({ id: 'e', steps: [{ kind: 'say', text: 'x', duration: 1 }] });
     session.activeEvent = null;

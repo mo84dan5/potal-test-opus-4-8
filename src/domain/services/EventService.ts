@@ -1,4 +1,5 @@
 import { GameSession } from '../entities/GameSession';
+import { evaluateCondition } from '../values/EventScript';
 import { Vec3 } from '../values/Vec3';
 import { MovementService } from './MovementService';
 
@@ -23,8 +24,25 @@ export class EventService {
 
   /** 進行中イベントがあれば1ステップ分進める。表示文は session.eventMessage に反映する */
   tick(session: GameSession, dt: number): void {
+    if (!session.activeEvent || dt <= 0) return;
+
+    // 即時に消化できるステップ(when 条件で飛ばす / setFlag)を先に進める(安全のため上限つき)
+    for (let guard = 0; session.activeEvent && guard < 64; guard++) {
+      const s = session.activeEvent.step;
+      if (s.when && !evaluateCondition(s.when, session)) {
+        this.advance(session); // 条件を満たさないステップはスキップ
+        continue;
+      }
+      if (s.kind === 'setFlag') {
+        session.flags.set(s.flag, s.value ?? true);
+        this.advance(session);
+        continue;
+      }
+      break; // 時間のかかるステップ(say/walkTo/...)に到達
+    }
+
     const active = session.activeEvent;
-    if (!active || dt <= 0) return;
+    if (!active) return;
 
     const step = active.step;
     switch (step.kind) {

@@ -161,6 +161,25 @@ describe('TapInteractUseCase(イベント)', () => {
     expect(session.dialogue).not.toBeNull(); // 会話が開く
     expect(session.dialogue!.currentLine).toBe('岩はもうどかしたよ。');
   });
+
+  it('available 条件を満たさないイベントは開始せず会話になる', () => {
+    const gated: GameEvent = {
+      id: 'gated',
+      available: { kind: 'flag', flag: 'ready' },
+      steps: [{ kind: 'say', text: 'go', duration: 1 }],
+    };
+    const npc = new Interactable('g', '門', new Vec3(0, 1, -2), 'b', ['まだだよ'], null, gated);
+    const session = buildSession([npc]);
+    // ready 未設定 → 開始不可
+    new TapInteractUseCase(session, new InteractionService(), INTERACT_RANGE).execute();
+    expect(session.activeEvent).toBeNull();
+    expect(session.dialogue!.currentLine).toBe('まだだよ');
+    // ready 設定 → 開始
+    session.dialogue = null;
+    session.flags.set('ready', true);
+    new TapInteractUseCase(session, new InteractionService(), INTERACT_RANGE).execute();
+    expect(session.activeEvent).not.toBeNull();
+  });
 });
 
 describe('TapInteractUseCase(扉)', () => {

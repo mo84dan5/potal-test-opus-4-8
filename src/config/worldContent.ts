@@ -569,14 +569,23 @@ export const WORLD_DEFS: WorldDef[] = [
  * walkTo は主人公の自動歩行、moveProp は可動プロップ(World.props)の移動。
  */
 export const EVENTS: Record<string, GameEvent> = {
-  // 案内役: タップすると先導して崖の前まで歩き(主人公は追従)、案内後は元の位置へ戻る
+  // 案内役: タップすると先導して崖の前まで歩き(主人公は追従)、案内後は元の位置へ戻る。
+  // フラグ 'guided' で初回と2回目以降の台詞を変える(条件分岐のデモ)
   'day-guide': {
     id: 'day-guide',
     steps: [
-      { kind: 'say', text: 'ついておいで。いい場所へ案内するよ。', duration: 2.5 },
+      {
+        kind: 'say', text: 'ついておいで。いい場所へ案内するよ。', duration: 2.5,
+        when: { kind: 'not', cond: { kind: 'flag', flag: 'guided' } },
+      },
+      {
+        kind: 'say', text: 'また案内しよう。ついておいで。', duration: 2.5,
+        when: { kind: 'flag', flag: 'guided' },
+      },
       { kind: 'escort', x: 12, z: 12 },
       { kind: 'say', text: 'ここが崖だ。登ってみるといい。私は戻るよ。', duration: 3 },
       { kind: 'actorHome' },
+      { kind: 'setFlag', flag: 'guided' },
     ],
   },
   // 岩どかし: タップすると岩が動いて道が開く(一度きり。以後は通常会話に変わる)

@@ -3,7 +3,7 @@ import { GameSession } from '../../domain/entities/GameSession';
 import { Npc } from '../../domain/entities/Npc';
 import { InteractionService } from '../../domain/services/InteractionService';
 import { PortalTraversalService } from '../../domain/services/PortalTraversalService';
-import { ActiveEvent } from '../../domain/values/EventScript';
+import { ActiveEvent, evaluateCondition } from '../../domain/values/EventScript';
 
 /** 扉タップ入室時に、接続先の扉の正面(室内側)へ立たせる距離 [m] */
 export const DOOR_ENTRY_OFFSET = 1.6;
@@ -47,13 +47,15 @@ export class TapInteractUseCase {
     );
     if (!target) return false;
 
-    // once イベントが完了済みなら開始せず、通常会話(dialogue)へ切り替える
+    // イベント開始可否: once 完了済みは不可、available 条件があれば満たす必要がある
+    const ev = target.event;
     const eventAvailable =
-      target.event !== null &&
-      !(target.event.once && this.session.completedEvents.has(target.event.id));
-    if (eventAvailable) {
+      ev !== null &&
+      !(ev.once && this.session.completedEvents.has(ev.id)) &&
+      (!ev.available || evaluateCondition(ev.available, this.session));
+    if (eventAvailable && ev) {
       // イベント開始(以降のフレームで EventService が進行。操作は見回しのみに制限される)
-      this.session.activeEvent = new ActiveEvent(target.event!);
+      this.session.activeEvent = new ActiveEvent(ev);
       this.session.eventActor = target instanceof Npc ? target : null; // 先導・帰宅する主役
       this.session.eventMessage = null;
       return false;
