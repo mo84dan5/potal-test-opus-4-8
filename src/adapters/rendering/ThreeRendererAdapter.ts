@@ -289,7 +289,7 @@ export class ThreeRendererAdapter {
     for (const ph of def?.portalHouses ?? []) {
       this.buildPortalHouse(scene, ph, world.terrain);
     }
-    if (def?.cliff) this.buildCliff(scene, def.cliff);
+    if (def?.cliff) this.buildCliff(scene, def.cliff, this.groundPatternOf(world.id));
 
     const npcMeshes = new Map<string, THREE.Group>();
     world.npcs.forEach((npc, i) => {
@@ -584,19 +584,45 @@ export class ThreeRendererAdapter {
    * よじ登れる崖(メサ)。高さ場(CliffField)に合わせた四角錐フラスタムの岩塊を描く。
    * 頂上は CLIFF.halfWidth の正方形、底面は +slopeRun だけ広い(急斜面)。
    */
-  private buildCliff(scene: THREE.Scene, cliff: { x: number; z: number }): void {
+  private buildCliff(
+    scene: THREE.Scene,
+    cliff: { x: number; z: number },
+    pattern: GroundPattern,
+  ): void {
     const SQRT2 = Math.SQRT2;
     const topR = CLIFF.halfWidth * SQRT2; // 4角柱の頂点までの半径(正方形の対角)
     const botR = (CLIFF.halfWidth + CLIFF.slopeRun) * SQRT2;
     // 底を 1m 地中へ埋めて、起伏のある地面との隙間/浮きを防ぐ(頂上は CLIFF.height のまま)
     const buried = 1;
+    const rock = new THREE.MeshLambertMaterial({ color: 0x8d7f6a, flatShading: true });
+    // 上面はその土地の地面テクスチャ(草/土/雪/石)にする
+    const topTex = createGroundTexture(pattern);
+    topTex.wrapS = topTex.wrapT = THREE.RepeatWrapping;
+    topTex.repeat.set(2, 2);
+    topTex.colorSpace = THREE.SRGBColorSpace;
+    const topMat = new THREE.MeshLambertMaterial({ map: topTex });
+    // CylinderGeometry のマテリアルグループ: [0]側面 [1]上面 [2]底面
     const mesh = new THREE.Mesh(
       new THREE.CylinderGeometry(topR, botR, CLIFF.height + buried, 4, 1),
-      new THREE.MeshLambertMaterial({ color: 0x8d7f6a, flatShading: true }),
+      [rock, topMat, rock],
     );
     mesh.rotation.y = Math.PI / 4; // 面を XZ 軸に揃える
     mesh.position.set(cliff.x, (CLIFF.height - buried) / 2, cliff.z);
     scene.add(mesh);
+  }
+
+  /** worldId に対応する地面テクスチャの種別 */
+  private groundPatternOf(worldId: string): GroundPattern {
+    switch (worldId) {
+      case 'night':
+        return 'dirt';
+      case 'snow':
+        return 'snow';
+      case 'ruins':
+        return 'stone';
+      default:
+        return 'grass';
+    }
   }
 
   private addGround(
@@ -776,11 +802,14 @@ export class ThreeRendererAdapter {
       box(t + 0.06, 0.08, 0.08, sx, 1.5, 0, trimMat); // 中桟
     }
 
-    // 前面壁(中央にドア開口: 幅1.4 × 高さ2.2)+ドア枠
+    // 前面壁(中央にドア開口: 幅1.4 × 高さ2.2)。
+    // まぐさは「開口上の全幅帯」、脇壁は「開口高さまで」にして、ドア上で同一平面に接する
+    // メッシュの重なり(Zファイティング)を無くす。
     const dw = HOUSE.doorWidth / 2;
-    box(w - dw, h, t, -(dw + (w - dw) / 2), h / 2, d);
-    box(w - dw, h, t, dw + (w - dw) / 2, h / 2, d);
-    box(HOUSE.doorWidth, h - 2.2, t, 0, (2.2 + h) / 2, d); // まぐさ
+    const doorH = 2.2;
+    box(HOUSE.width, h - doorH, t, 0, (doorH + h) / 2, d); // 開口上の全幅帯(まぐさ)
+    box(w - dw, doorH, t, -(dw + (w - dw) / 2), doorH / 2, d); // 左の脇壁
+    box(w - dw, doorH, t, dw + (w - dw) / 2, doorH / 2, d); // 右の脇壁
     box(0.1, 2.2, t + 0.06, -dw, 1.1, d, trimMat);
     box(0.1, 2.2, t + 0.06, dw, 1.1, d, trimMat);
     box(HOUSE.doorWidth + 0.2, 0.1, t + 0.06, 0, 2.25, d, trimMat);
