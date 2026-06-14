@@ -113,7 +113,8 @@
         background: rgba(255, 255, 255, 0.55);
         box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
       }
-      #view-btn {
+      #view-btn,
+      #save-btn {
         position: fixed;
         top: calc(env(safe-area-inset-top, 0px) + 56px);
         right: 14px;
@@ -131,6 +132,76 @@
         font-weight: 600;
         cursor: pointer;
         z-index: 30;
+      }
+      #save-btn {
+        left: 14px;
+        right: auto;
+      }
+      #save-panel {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.45);
+        pointer-events: auto;
+        z-index: 40;
+      }
+      #save-panel.visible {
+        display: flex;
+      }
+      #save-panel .card {
+        width: min(92vw, 480px);
+        box-sizing: border-box;
+        padding: 18px;
+        border-radius: 16px;
+        background: rgba(16, 22, 44, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        color: #fff;
+        font-size: 14px;
+      }
+      #save-panel .title {
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      #save-panel .hint {
+        font-size: 12px;
+        opacity: 0.75;
+        margin-bottom: 8px;
+      }
+      #save-code {
+        width: 100%;
+        box-sizing: border-box;
+        height: 96px;
+        resize: none;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        background: rgba(0, 0, 0, 0.35);
+        color: #fff;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        padding: 8px;
+      }
+      #save-panel .row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      #save-panel .row button {
+        flex: 1;
+        padding: 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      #save-status {
+        margin-top: 8px;
+        font-size: 12px;
+        min-height: 1.2em;
+        opacity: 0.9;
       }
       #glide,
       #climb {
@@ -242,6 +313,20 @@
     <div id="glide">🪂 滑空中</div>
     <div id="climb">🧗 よじ登り中</div>
     <button id="view-btn" type="button">🧍 3人称</button>
+    <button id="save-btn" type="button">💾 セーブ</button>
+    <div id="save-panel">
+      <div class="card">
+        <div class="title">セーブ / ロード</div>
+        <div class="hint">コードをコピーして保存。貼り付けて「ロード」で復元できます。</div>
+        <textarea id="save-code" spellcheck="false"></textarea>
+        <div class="row">
+          <button id="save-copy" type="button">コピー</button>
+          <button id="save-load" type="button">ロード</button>
+          <button id="save-close" type="button">閉じる</button>
+        </div>
+        <div id="save-status"></div>
+      </div>
+    </div>
     <div id="bubble"></div>
     <div id="dialog">
       <div id="dialog-text"></div>

@@ -12,6 +12,8 @@ import { MovementService } from './domain/services/MovementService';
 import { NpcWanderService } from './domain/services/NpcWanderService';
 import { PortalTraversalService } from './domain/services/PortalTraversalService';
 import { EventService } from './domain/services/EventService';
+import { SaveService } from './domain/services/SaveService';
+import { Base64JsonSnapshotCodec } from './adapters/persistence/Base64JsonSnapshotCodec';
 import { Collider } from './domain/values/Collider';
 import { CliffField, HeightField, HillyTerrain, TwoFloorField } from './domain/values/Terrain';
 import {
@@ -306,6 +308,8 @@ const interaction = new InteractionService();
 const applyStick = new ApplyStickUseCase(session);
 const startGlide = new StartGlideUseCase(session);
 const eventService = new EventService(movement);
+const saveService = new SaveService();
+const snapshotCodec = new Base64JsonSnapshotCodec();
 const applyDash = new ApplyDashUseCase(session, movement);
 const applyLook = new ApplyLookUseCase(session);
 const stopMovement = new StopMovementUseCase(session, movement);
@@ -336,7 +340,18 @@ const dialogTextEl = document.getElementById('dialog-text');
 const glideEl = document.getElementById('glide');
 const climbEl = document.getElementById('climb');
 const viewBtn = document.getElementById('view-btn');
-if (!container || !worldNameEl || !hintEl || !bubbleEl || !dialogEl || !dialogTextEl || !glideEl || !climbEl || !viewBtn) {
+const saveBtn = document.getElementById('save-btn');
+const savePanel = document.getElementById('save-panel');
+const saveCodeEl = document.getElementById('save-code') as HTMLTextAreaElement | null;
+const saveCopyBtn = document.getElementById('save-copy');
+const saveLoadBtn = document.getElementById('save-load');
+const saveCloseBtn = document.getElementById('save-close');
+const saveStatusEl = document.getElementById('save-status');
+if (
+  !container || !worldNameEl || !hintEl || !bubbleEl || !dialogEl || !dialogTextEl ||
+  !glideEl || !climbEl || !viewBtn || !saveBtn || !savePanel || !saveCodeEl ||
+  !saveCopyBtn || !saveLoadBtn || !saveCloseBtn || !saveStatusEl
+) {
   throw new Error('required DOM elements are missing');
 }
 
@@ -348,19 +363,58 @@ viewBtn.addEventListener('click', () => {
   viewBtn.textContent = mode === 'third' ? '🧍 3人称' : '👤 1人称';
 });
 
+// --- セーブ/ロード(文字列コードのコピー&ペースト)---
+let savePanelOpen = false;
+const closeSavePanel = (): void => {
+  savePanelOpen = false;
+  savePanel.classList.remove('visible');
+};
+saveBtn.addEventListener('click', () => {
+  if (session.activeEvent) return; // イベント中は不可
+  stopMovement.execute(); // パネル中は移動を止める
+  saveCodeEl.value = snapshotCodec.encode(saveService.capture(session));
+  saveStatusEl.textContent = '';
+  savePanelOpen = true;
+  savePanel.classList.add('visible');
+});
+saveCopyBtn.addEventListener('click', () => {
+  saveCodeEl.select();
+  const done = (ok: boolean): void => {
+    saveStatusEl.textContent = ok ? 'コピーしました。' : '選択してコピーしてください。';
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(saveCodeEl.value).then(() => done(true), () => done(false));
+  } else {
+    done(document.execCommand('copy'));
+  }
+});
+saveLoadBtn.addEventListener('click', () => {
+  try {
+    const snapshot = snapshotCodec.decode(saveCodeEl.value);
+    saveService.restore(session, snapshot);
+    worldNameEl.textContent = session.currentWorld.name;
+    saveStatusEl.textContent = 'ロードしました。';
+    closeSavePanel();
+  } catch (e) {
+    saveStatusEl.textContent = e instanceof Error ? e.message : 'ロードに失敗しました。';
+  }
+});
+saveCloseBtn.addEventListener('click', closeSavePanel);
+
+// イベント中・セーブパネル表示中は見回し(onLook)以外の操作をロックする
+const inputLocked = (): boolean => session.activeEvent !== null || savePanelOpen;
 const stickInput = new VirtualStickInputAdapter(renderer.canvas, {
-  // イベント中は見回し(onLook)以外の操作を受け付けない
   onStickEnd: () => {
-    if (session.activeEvent) return;
+    if (inputLocked()) return;
     stopMovement.execute();
   },
   onDash: (dx, dy) => {
-    if (session.activeEvent) return;
+    if (inputLocked()) return;
     applyDash.execute({ dx, dy });
   },
-  onLook: (dx, dy) => applyLook.execute(dx, dy), // 見回しはイベント中も可
+  onLook: (dx, dy) => applyLook.execute(dx, dy), // 見回しは常に可
   onTap: () => {
-    if (session.activeEvent) return;
+    if (inputLocked()) return;
     // 落下中(滞空中)のタップは滑空開始に使い、会話/扉は発火させない
     if (startGlide.execute()) return;
     // 扉タップで入室したら世界名表示を更新する
@@ -370,7 +424,7 @@ const stickInput = new VirtualStickInputAdapter(renderer.canvas, {
   },
   // 2本目の指の接地: 落下中なら滑空開始(移動スティックを押したまま起動できる)
   onSecondaryTouch: () => {
-    if (session.activeEvent) return;
+    if (inputLocked()) return;
     startGlide.execute();
   },
 });
@@ -414,7 +468,7 @@ function frame(now: number): void {
   if (session.activeEvent) {
     // イベント進行(walkTo は desiredVelocity を設定、moveProp はプロップを動かす)
     eventService.tick(session, dt);
-  } else {
+  } else if (!savePanelOpen) {
     applyStick.execute(stickInput.getStick());
   }
   const result = tick.execute(dt);
@@ -424,6 +478,7 @@ function frame(now: number): void {
 
   glideEl!.classList.toggle('visible', session.player.gliding);
   climbEl!.classList.toggle('visible', session.player.climbing);
+  saveBtn!.style.display = session.activeEvent ? 'none' : ''; // イベント中はセーブ不可
   updateInteractionUi();
   renderer.render(dt);
   requestAnimationFrame(frame);
