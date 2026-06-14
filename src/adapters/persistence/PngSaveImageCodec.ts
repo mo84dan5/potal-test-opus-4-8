@@ -23,7 +23,7 @@ export interface SaveImageCodec {
 const SCALE = 6;
 const COLS = 48; // 1行あたりの論理画素数(画像幅 = COLS*SCALE)
 const CAPTION_H = 58; // 下部キャプション帯の高さ(px)
-const ASPECT = 3 / 2; // 仕上がりの横長比(幅:高さ)。データが少なくても一定の長方形に整える
+const ASPECT = 1; // 仕上がりの縦横比(幅:高さ)。データが少なくても一定の正方形に整える
 const BG = '#0b1026';
 
 /** ISO 文字列を読みやすい日時に整形(失敗時は元の文字列) */
@@ -47,7 +47,7 @@ export class PngSaveImageCodec implements SaveImageCodec {
     const dataH = rows * SCALE;
 
     // 幅は COLS*SCALE のまま固定し(デコーダの中心サンプルを保つ)、
-    // 高さだけを足して常に横長の長方形(ASPECT)に整える。データが大きい時は必要分だけ伸びる。
+    // 高さだけを足して常に正方形(ASPECT)に整える。データが大きい時は必要分だけ伸びる。
     const minH = dataH + CAPTION_H;
     const targetH = Math.round(dataW / ASPECT);
 
