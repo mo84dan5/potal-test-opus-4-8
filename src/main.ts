@@ -42,6 +42,7 @@ import {
 import { ApplyDashUseCase } from './application/usecases/ApplyDashUseCase';
 import { ApplyLookUseCase } from './application/usecases/ApplyLookUseCase';
 import { ApplyStickUseCase } from './application/usecases/ApplyStickUseCase';
+import { StartGlideUseCase } from './application/usecases/StartGlideUseCase';
 import { NearbyBubbleUseCase } from './application/usecases/NearbyBubbleUseCase';
 import { StopMovementUseCase } from './application/usecases/StopMovementUseCase';
 import { TapInteractUseCase } from './application/usecases/TapInteractUseCase';
@@ -290,6 +291,7 @@ const movement = new MovementService();
 const traversal = new PortalTraversalService();
 const interaction = new InteractionService();
 const applyStick = new ApplyStickUseCase(session);
+const startGlide = new StartGlideUseCase(session);
 const applyDash = new ApplyDashUseCase(session, movement);
 const applyLook = new ApplyLookUseCase(session);
 const stopMovement = new StopMovementUseCase(session, movement);
@@ -317,7 +319,8 @@ const hintEl = document.getElementById('hint');
 const bubbleEl = document.getElementById('bubble');
 const dialogEl = document.getElementById('dialog');
 const dialogTextEl = document.getElementById('dialog-text');
-if (!container || !worldNameEl || !hintEl || !bubbleEl || !dialogEl || !dialogTextEl) {
+const glideEl = document.getElementById('glide');
+if (!container || !worldNameEl || !hintEl || !bubbleEl || !dialogEl || !dialogTextEl || !glideEl) {
   throw new Error('required DOM elements are missing');
 }
 
@@ -327,11 +330,15 @@ const stickInput = new VirtualStickInputAdapter(renderer.canvas, {
   onDash: (dx, dy) => applyDash.execute({ dx, dy }),
   onLook: (dx, dy) => applyLook.execute(dx, dy),
   onTap: () => {
+    // 落下中(滞空中)のタップは滑空開始に使い、会話/扉は発火させない
+    if (startGlide.execute()) return;
     // 扉タップで入室したら世界名表示を更新する
     if (tapInteract.execute()) {
       worldNameEl.textContent = session.currentWorld.name;
     }
   },
+  // 2本目の指の接地: 落下中なら滑空開始(移動スティックを押したまま起動できる)
+  onSecondaryTouch: () => startGlide.execute(),
 });
 
 // --- 吹き出し・メッセージウィンドウのUI更新 ---
@@ -371,6 +378,7 @@ function frame(now: number): void {
     worldNameEl!.textContent = session.currentWorld.name;
   }
 
+  glideEl!.classList.toggle('visible', session.player.gliding);
   updateInteractionUi();
   renderer.render();
   requestAnimationFrame(frame);

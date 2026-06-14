@@ -100,14 +100,48 @@ describe('MovementService', () => {
     expect(player.position.y).toBe(0); // 吸い上げられず1階に留まる
   });
 
-  it('大きな段差を踏み外すと一定速度で滑らかに降下する(瞬間ワープしない)', () => {
+  it('大きな段差を踏み外すと一定速度(FALL_SPEED=6)で滑らかに降下し、滞空フラグが立つ', () => {
     const service = new MovementService();
     const player = newPlayer();
     player.position = new Vec3(0, 3, 0); // ロフト高さ
     const terrain = { heightAt: () => 0, floorAt: () => 0 }; // 足元の床は0
     service.tick(player, 0.1, terrain);
-    expect(player.position.y).toBeCloseTo(1.6); // 3 - 14*0.1 = 1.6(まだ降下中)
-    for (let i = 0; i < 5; i++) service.tick(player, 0.1, terrain);
+    expect(player.position.y).toBeCloseTo(2.4); // 3 - 6*0.1 = 2.4(まだ降下中)
+    expect(player.airborne).toBe(true);
+    for (let i = 0; i < 10; i++) service.tick(player, 0.1, terrain);
     expect(player.position.y).toBe(0); // やがて着地
+    expect(player.airborne).toBe(false);
+  });
+
+  it('滑空中は降下がさらに遅い(GLIDE_FALL_SPEED=1.5)', () => {
+    const service = new MovementService();
+    const player = newPlayer();
+    player.position = new Vec3(0, 3, 0);
+    player.gliding = true;
+    const terrain = { heightAt: () => 0, floorAt: () => 0 };
+    service.tick(player, 0.1, terrain);
+    expect(player.position.y).toBeCloseTo(2.85); // 3 - 1.5*0.1
+  });
+
+  it('着地すると滑空状態は解除される', () => {
+    const service = new MovementService();
+    const player = newPlayer();
+    player.position = new Vec3(0, 0, 0);
+    player.gliding = true;
+    const terrain = { heightAt: () => 0 }; // 足元0=着地
+    service.tick(player, 0.1, terrain);
+    expect(player.airborne).toBe(false);
+    expect(player.gliding).toBe(false);
+  });
+
+  it('滑空中は水平速度が GLIDE_MOVE_SPEED にクランプされる', () => {
+    const service = new MovementService();
+    const player = newPlayer();
+    player.position = new Vec3(0, 3, 0);
+    player.gliding = true;
+    player.velocity = new Vec3(10, 0, 0); // 速い水平速度
+    const terrain = { heightAt: () => 0, floorAt: () => 0 };
+    service.tick(player, 0.1, terrain);
+    expect(Math.hypot(player.velocity.x, player.velocity.z)).toBeCloseTo(3); // GLIDE_MOVE_SPEED
   });
 });

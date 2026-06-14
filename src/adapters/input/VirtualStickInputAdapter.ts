@@ -14,6 +14,8 @@ export interface VirtualStickCallbacks {
   onLook(dx: number, dy: number): void;
   /** タップ(短時間・微小移動で離した)した瞬間 */
   onTap(x: number, y: number): void;
+  /** 2本目以降の指が接地した瞬間(1本目を押したまま別の指で触れた=「2本指の2本目タップ」) */
+  onSecondaryTouch(): void;
 }
 
 const STICK_RADIUS = 70; // [px] ベース円の半径(正規化の分母)
@@ -104,6 +106,8 @@ export class VirtualStickInputAdapter {
   private readonly onDown = (e: PointerEvent): void => {
     // タッチドラッグでテキスト選択・コールアウトが起動する既定動作を抑止する(CSSと併用の保険)
     if (e.cancelable) e.preventDefault();
+    // 1本目を押したまま別の指で触れた=「2本指の2本目タップ」(滑空の起動などに使う)
+    if (this.pointers.size > 0) this.callbacks.onSecondaryTouch();
     // 役割はこの指を登録する前の状態(他の指の有無)で決める
     const role = roleForTouch(
       this.stickPointerId !== null,

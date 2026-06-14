@@ -4,6 +4,10 @@ import { Vec3 } from '../values/Vec3';
 export class Player {
   /** 仮想パッド押下中の目標速度。null なら入力なし(慣性減衰に任せる) */
   public desiredVelocity: Vec3 | null = null;
+  /** 滞空中(床から離れて落下している)か。MovementService が毎フレーム更新する */
+  public airborne = false;
+  /** 滑空中か(落下がさらに遅く、ゆっくり水平移動できる)。着地で解除される */
+  public gliding = false;
 
   constructor(
     public position: Vec3,
