@@ -23,6 +23,7 @@ export interface SaveImageCodec {
 const SCALE = 6;
 const COLS = 48; // 1行あたりの論理画素数(画像幅 = COLS*SCALE)
 const CAPTION_H = 58; // 下部キャプション帯の高さ(px)
+const ASPECT = 3 / 2; // 仕上がりの横長比(幅:高さ)。データが少なくても一定の長方形に整える
 const BG = '#0b1026';
 
 /** ISO 文字列を読みやすい日時に整形(失敗時は元の文字列) */
@@ -45,9 +46,14 @@ export class PngSaveImageCodec implements SaveImageCodec {
     const dataW = COLS * SCALE;
     const dataH = rows * SCALE;
 
+    // 幅は COLS*SCALE のまま固定し(デコーダの中心サンプルを保つ)、
+    // 高さだけを足して常に横長の長方形(ASPECT)に整える。データが大きい時は必要分だけ伸びる。
+    const minH = dataH + CAPTION_H;
+    const targetH = Math.round(dataW / ASPECT);
+
     const canvas = document.createElement('canvas');
     canvas.width = dataW;
-    canvas.height = dataH + CAPTION_H;
+    canvas.height = Math.max(minH, targetH);
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('画像の生成に失敗しました');
 
@@ -66,8 +72,8 @@ export class PngSaveImageCodec implements SaveImageCodec {
       ctx.fillRect(col * SCALE, row * SCALE, SCALE, SCALE);
     }
 
-    // キャプション帯(アプリ名・保存日時)
-    const capY = dataH;
+    // キャプション帯(アプリ名・保存日時)は最下部に固定する
+    const capY = canvas.height - CAPTION_H;
     ctx.fillStyle = 'rgba(255,255,255,0.06)';
     ctx.fillRect(0, capY, canvas.width, CAPTION_H);
     ctx.fillStyle = '#ffffff';
