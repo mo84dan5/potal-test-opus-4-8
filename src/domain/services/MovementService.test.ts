@@ -87,4 +87,27 @@ describe('MovementService', () => {
     expect(player.position.x).toBeCloseTo(2);
     expect(player.position.y).toBeCloseTo(0.2); // h(2, 0) = 0.2
   });
+
+  it('多層床(floorAt)では足元高さに応じた床に乗る(1階はロフト下でも0のまま)', () => {
+    const service = new MovementService();
+    const player = newPlayer();
+    // currentY が高ければロフト(3)、低ければ1階(0)を返す多層床の模擬
+    const terrain = {
+      heightAt: () => 3,
+      floorAt: (_x: number, _z: number, cy: number) => (cy > 2.4 ? 3 : 0),
+    };
+    service.tick(player, 0.1, terrain); // currentY=0
+    expect(player.position.y).toBe(0); // 吸い上げられず1階に留まる
+  });
+
+  it('大きな段差を踏み外すと一定速度で滑らかに降下する(瞬間ワープしない)', () => {
+    const service = new MovementService();
+    const player = newPlayer();
+    player.position = new Vec3(0, 3, 0); // ロフト高さ
+    const terrain = { heightAt: () => 0, floorAt: () => 0 }; // 足元の床は0
+    service.tick(player, 0.1, terrain);
+    expect(player.position.y).toBeCloseTo(1.6); // 3 - 14*0.1 = 1.6(まだ降下中)
+    for (let i = 0; i < 5; i++) service.tick(player, 0.1, terrain);
+    expect(player.position.y).toBe(0); // やがて着地
+  });
 });

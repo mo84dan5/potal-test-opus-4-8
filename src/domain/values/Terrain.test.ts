@@ -98,9 +98,30 @@ describe('TwoFloorField(2階建ての家の床高さ)', () => {
     expect(f.heightAt(5, -1)).toBeGreaterThan(f.heightAt(5, -3));
   });
 
-  it('階段レーン外(x<stairXMin)の前方は1階のまま(段差=手すりで塞ぐ前提)', () => {
+  it('階段レーン外(x<stairXMin)の前方は1階のまま', () => {
     expect(f.heightAt(0, -2)).toBe(0);
     expect(f.heightAt(3.49, -2)).toBe(0);
     expect(f.heightAt(3.5, -2)).toBeGreaterThan(0); // 階段レーンに入ると上がる
+  });
+
+  it('floorAt: ロフト領域でも1階(currentY≈0)なら床は0=ロフト下に立てる', () => {
+    // ロフトの真下: heightAt は 3 を返すが、足元が1階なら 0 に留まる
+    expect(f.heightAt(-3, 4)).toBe(3.0);
+    expect(f.floorAt(-3, 4, 0)).toBe(0); // 1階としてロフト下にいる
+    expect(f.floorAt(-3, 4, 0.3)).toBe(0);
+  });
+
+  it('floorAt: ロフトの高さ付近(currentY≈H)ならロフト(H)に立つ', () => {
+    expect(f.floorAt(-3, 4, 3.0)).toBe(3.0);
+    expect(f.floorAt(0, 2, 2.8)).toBe(3.0); // 段差越え範囲内なので上がる
+  });
+
+  it('floorAt: 階段は currentY に沿って1段ずつ上がれる(大ジャンプはできない)', () => {
+    // 階段下端から登り始め、各段は STEP_UP 以内
+    expect(f.floorAt(5, -4, 0)).toBeCloseTo(0);
+    // 中腹(stair=1.5)に1階(currentY=0)からは一気に上がれない → 0 のまま(下をくぐる)
+    expect(f.floorAt(5, -2, 0)).toBe(0);
+    // 中腹の高さにいれば階段面に乗る
+    expect(f.floorAt(5, -2, 1.5)).toBeCloseTo(1.5);
   });
 });

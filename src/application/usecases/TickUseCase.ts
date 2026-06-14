@@ -31,9 +31,15 @@ export class TickUseCase {
     this.movement.tick(player, dt, currentWorld.terrain);
     // 押し出し後の位置でポータル判定する(押し戻されたフレームの誤通過を防ぐ)
     this.collision.resolve(player, currentWorld.colliders);
-    // 押し出しで足元がずれた場合も地形へ再スナップ
+    // 押し出しで足元がずれた場合も床へ再スナップ(多層床対応。dt=0 で落下は進めない)
     player.position = player.position.withY(
-      currentWorld.terrain.heightAt(player.position.x, player.position.z),
+      this.movement.floorY(
+        currentWorld.terrain,
+        player.position.x,
+        player.position.z,
+        player.position.y,
+        0,
+      ),
     );
 
     // 全ワールドのNPCを徘徊させる(ポータル越しに見えるNPCも動く)。

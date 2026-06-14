@@ -208,18 +208,21 @@ describe('roomWallColliderSpots(室内ワールドの壁)', () => {
 describe('twoFloorRailingColliderSpots(2階の手すり)', () => {
   const spots = twoFloorRailingColliderSpots();
 
-  it('ロフト前縁(z=loftFrontZ)の手すりは階段開口(x>=stairXMin)を除いて並ぶ', () => {
-    const front = spots.filter((s) => Math.abs(s.z - TWO_FLOOR.loftFrontZ) < 1e-6);
-    expect(front.length).toBeGreaterThan(0);
-    // 階段の登り口より右(x>stairXMin)には手すりを置かない(そこから2階へ上がる)
-    expect(front.every((s) => s.x <= TWO_FLOOR.stairXMin + 1e-6)).toBe(true);
-    // 左端(壁際)まで覆う
-    expect(Math.min(...front.map((s) => s.x))).toBeLessThanOrEqual(-TWO_FLOOR.width / 2 + 1e-6);
+  it('手すりは階段の開放側(x=stairXMin)のみで、ロフト前縁(z=loftFrontZ)には置かない', () => {
+    // すべて x=stairXMin 上(階段脇)
+    expect(spots.length).toBeGreaterThan(0);
+    expect(spots.every((s) => Math.abs(s.x - TWO_FLOOR.stairXMin) < 1e-6)).toBe(true);
+    // ロフト前縁(z=loftFrontZ かつ x<stairXMin)には手すりが無い
+    // = 1階のプレイヤーがロフト下へ進む経路を塞がない
+    const frontRail = spots.filter(
+      (s) => Math.abs(s.z - TWO_FLOOR.loftFrontZ) < 1e-6 && s.x < TWO_FLOOR.stairXMin - 1e-6,
+    );
+    expect(frontRail.length).toBe(0);
   });
 
-  it('階段の開放側(x=stairXMin)に支柱が縦に並ぶ', () => {
-    const side = spots.filter((s) => Math.abs(s.x - TWO_FLOOR.stairXMin) < 1e-6);
-    expect(side.length).toBeGreaterThan(0);
-    expect(side.every((s) => s.z >= TWO_FLOOR.stairZBottom - 1e-6 && s.z <= TWO_FLOOR.loftFrontZ)).toBe(true);
+  it('階段脇の支柱は z 範囲(stairZBottom..loftFrontZ)に収まる', () => {
+    expect(
+      spots.every((s) => s.z >= TWO_FLOOR.stairZBottom - 1e-6 && s.z <= TWO_FLOOR.loftFrontZ),
+    ).toBe(true);
   });
 });

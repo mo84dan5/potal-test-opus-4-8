@@ -207,19 +207,15 @@ export const TWO_FLOOR = {
 
 /**
  * 2階建ての家の手すりコライダー位置(XZ・部屋中心が原点)。
- * ロフト前縁(z=loftFrontZ, 階段開口 x>=stairXMin は除く)と、階段の開放側(x=stairXMin)に並べ、
- * 段差からの転落(瞬間降下)を防ぐ。階段の登り口だけ開けておく。
+ * 階段の開放側(x=stairXMin)にのみ並べ、階段の踏み外しを防ぐ。
+ * ロフト前縁には手すりを置かない: 1階のプレイヤーがロフトの下へ自由に入れるようにするため
+ * (前縁は開放型のメザニン。踏み外しは MovementService が滑らかに降下させる)。
  */
 export const TWO_FLOOR_RAILING_RADIUS = 0.3;
 export function twoFloorRailingColliderSpots(): Array<{ x: number; z: number }> {
   const spots: Array<{ x: number; z: number }> = [];
-  const w = TWO_FLOOR.width / 2;
   const step = 0.6;
-  // ロフト前縁(階段開口=右側 x>=stairXMin は空ける)
-  for (let x = -w; x <= TWO_FLOOR.stairXMin + 1e-6; x += step) {
-    spots.push({ x, z: TWO_FLOOR.loftFrontZ });
-  }
-  // 階段の開放側(左側)に沿った手すり
+  // 階段の開放側(左側)に沿った手すりのみ
   for (let z = TWO_FLOOR.stairZBottom; z <= TWO_FLOOR.loftFrontZ - step + 1e-6; z += step) {
     spots.push({ x: TWO_FLOOR.stairXMin, z });
   }

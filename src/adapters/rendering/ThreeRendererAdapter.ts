@@ -435,13 +435,8 @@ export class ThreeRendererAdapter {
       );
     }
 
-    // 手すり: ロフト前縁(z=loftFrontZ、階段開口 x>=stairXMin は除く)の上の横バー+支柱
-    const railTop = FH + 0.9;
-    box(w + c.stairXMin, 0.08, 0.08, (-w + c.stairXMin) / 2, railTop, c.loftFrontZ, trimMat);
-    for (let x = -w + 0.3; x <= c.stairXMin - 0.3; x += 1.3) {
-      box(0.08, 0.9, 0.08, x, FH + 0.45, c.loftFrontZ, trimMat);
-    }
-    // 手すり: 階段の開放側(x=stairXMin)。各 z で階段面の高さに合わせた支柱
+    // 手すり: 階段の開放側(x=stairXMin)のみ。各 z で階段面の高さに合わせた支柱。
+    // ロフト前縁には手すりを置かない(1階からロフト下へ入れるようにする=開放型メザニン)。
     for (let z = c.stairZBottom; z <= c.loftFrontZ - 1e-6; z += 0.8) {
       const sh = ((z - c.stairZBottom) / run) * FH; // その位置の階段面の高さ
       box(0.08, 0.9, 0.08, c.stairXMin, sh + 0.45, z, trimMat);

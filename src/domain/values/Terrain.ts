@@ -1,6 +1,12 @@
 /** 地形の高さ場。足元の高さ h(x,z) を返す */
 export interface HeightField {
   heightAt(x: number, z: number): number;
+  /**
+   * 任意: 現在の足元高さ currentY を考慮して、立つべき床面の高さを返す(多層床用)。
+   * 例: 2階建ての家では、ロフト下の1階(currentY≈0)とロフト(currentY≈H)を区別する。
+   * 未実装の高さ場は heightAt と同じ単層として扱う。
+   */
+  floorAt?(x: number, z: number, currentY: number): number;
 }
 
 /** 平坦な地形(高さ常に0) */
@@ -70,24 +76,46 @@ export interface TwoFloorConfig {
   stairZTop: number;
 }
 
+/** 1フレームで登れる段差の上限 [m](これ以下なら床面として上がれる) */
+export const TWO_FLOOR_STEP_UP = 0.6;
+
 /**
- * 2階建ての家の床高さ場。
- * - z >= loftFrontZ: ロフト(2階, h=floorHeight)
- * - 階段レーン(x >= stairXMin かつ stairZBottom <= z < stairZTop): z に沿って 0→floorHeight に傾斜
- * - それ以外: 1階(h=0)
- * 段差の縁(ロフト前縁・階段の開放側)は手すりコライダーで塞ぐ前提(本クラスは高さのみ担当)。
+ * 2階建ての家の床高さ場(多層)。各 (x,z) で複数の床面を持つ:
+ * - 1階(h=0): 常に存在(ロフトの下にも床がある)
+ * - 階段(x >= stairXMin かつ stairZBottom <= z < stairZTop): z に沿って 0→floorHeight に傾斜
+ * - ロフト(z >= loftFrontZ): h=floorHeight
+ *
+ * `floorAt` は現在の足元高さ currentY を見て、currentY+STEP_UP 以下で最も高い床面を返す。
+ * これにより 1階(currentY≈0)ではロフト下を歩け、階段でだけ徐々に上がってロフトに乗れる。
+ * `heightAt`(配置・NPC初期化用)は最も高い床面を返す。
  */
 export class TwoFloorField implements HeightField {
   constructor(private readonly c: TwoFloorConfig) {}
 
-  heightAt(x: number, z: number): number {
+  /** (x,z) に存在する床面の高さ一覧(常に1階0を含む) */
+  private surfacesAt(x: number, z: number): number[] {
     const c = this.c;
-    if (z >= c.loftFrontZ) return c.floorHeight; // ロフト(2階)
+    const surfaces = [0]; // 1階(ロフト下にも床がある)
     if (x >= c.stairXMin && z >= c.stairZBottom && z < c.stairZTop) {
       const run = c.stairZTop - c.stairZBottom;
       const t = run > 0 ? (z - c.stairZBottom) / run : 1; // 0(下端)→1(上端)
-      return t * c.floorHeight; // 階段ランプ
+      surfaces.push(t * c.floorHeight); // 階段ランプ
     }
-    return 0; // 1階
+    if (z >= c.loftFrontZ) surfaces.push(c.floorHeight); // ロフト(2階)
+    return surfaces;
+  }
+
+  heightAt(x: number, z: number): number {
+    return Math.max(...this.surfacesAt(x, z));
+  }
+
+  floorAt(x: number, z: number, currentY: number): number {
+    const surfaces = this.surfacesAt(x, z);
+    let best = -Infinity;
+    for (const s of surfaces) {
+      if (s <= currentY + TWO_FLOOR_STEP_UP && s > best) best = s; // 登れる範囲で最も高い面
+    }
+    // どの面にも届かない(上がれない)場合は最も低い面へ = 落下対象
+    return best === -Infinity ? Math.min(...surfaces) : best;
   }
 }
