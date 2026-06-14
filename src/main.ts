@@ -325,11 +325,19 @@ const dialogEl = document.getElementById('dialog');
 const dialogTextEl = document.getElementById('dialog-text');
 const glideEl = document.getElementById('glide');
 const climbEl = document.getElementById('climb');
-if (!container || !worldNameEl || !hintEl || !bubbleEl || !dialogEl || !dialogTextEl || !glideEl || !climbEl) {
+const viewBtn = document.getElementById('view-btn');
+if (!container || !worldNameEl || !hintEl || !bubbleEl || !dialogEl || !dialogTextEl || !glideEl || !climbEl || !viewBtn) {
   throw new Error('required DOM elements are missing');
 }
 
 const renderer = new ThreeRendererAdapter(container, session);
+
+// 視点モード切替(1人称/3人称)ボタン
+viewBtn.addEventListener('click', () => {
+  const mode = renderer.toggleCameraMode();
+  viewBtn.textContent = mode === 'third' ? '🧍 3人称' : '👤 1人称';
+});
+
 const stickInput = new VirtualStickInputAdapter(renderer.canvas, {
   onStickEnd: () => stopMovement.execute(),
   onDash: (dx, dy) => applyDash.execute({ dx, dy }),

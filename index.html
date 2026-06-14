@@ -113,6 +113,25 @@
         background: rgba(255, 255, 255, 0.55);
         box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
       }
+      #view-btn {
+        position: fixed;
+        top: calc(env(safe-area-inset-top, 0px) + 56px);
+        right: 14px;
+        pointer-events: auto;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        z-index: 30;
+      }
       #glide,
       #climb {
         position: fixed;
@@ -218,6 +237,7 @@
     <div id="hint">下半分で移動 / 上半分で見回し / はじくとダッシュ</div>
     <div id="glide">🪂 滑空中</div>
     <div id="climb">🧗 よじ登り中</div>
+    <button id="view-btn" type="button">👤 1人称</button>
     <div id="bubble"></div>
     <div id="dialog">
       <div id="dialog-text"></div>

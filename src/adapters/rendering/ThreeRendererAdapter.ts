@@ -5,6 +5,7 @@ import { Portal } from '../../domain/entities/Portal';
 import { World } from '../../domain/entities/World';
 import { HeightField } from '../../domain/values/Terrain';
 import { Vec3 } from '../../domain/values/Vec3';
+import { computeThirdPersonCamera } from './cameraView';
 import {
   CLIFF,
   HOUSE,
@@ -59,6 +60,10 @@ export class ThreeRendererAdapter {
   /** 現在ワールドのポータルに毎フレーム割り当てるレンダーターゲットのプール */
   private readonly renderTargetPool: THREE.WebGLRenderTarget[] = [];
   private readonly views = new Map<string, WorldView>();
+  /** 視点モード('first'=1人称 / 'third'=3人称) */
+  private cameraMode: 'first' | 'third' = 'first';
+  /** 3人称時に表示するプレイヤーのアバター(現在ワールドのシーンへ毎フレーム配置) */
+  private readonly avatar: THREE.Group;
 
   constructor(
     container: HTMLElement,
@@ -90,11 +95,20 @@ export class ThreeRendererAdapter {
       this.views.set(world.id, this.buildWorld(world, size));
     }
 
+    this.avatar = buildNpcMesh(0x4a8ad0); // プレイヤーのアバター(青)
+    this.avatar.visible = false;
+
     window.addEventListener('resize', this.onResize);
   }
 
   get canvas(): HTMLCanvasElement {
     return this.renderer.domElement;
+  }
+
+  /** 1人称/3人称を切り替え、切替後のモードを返す */
+  toggleCameraMode(): 'first' | 'third' {
+    this.cameraMode = this.cameraMode === 'first' ? 'third' : 'first';
+    return this.cameraMode;
   }
 
   /** ワールド座標をスクリーン座標 [px] へ投影する(吹き出しの位置決め用) */
@@ -112,6 +126,7 @@ export class ThreeRendererAdapter {
     const view = this.viewOf(world.id);
     this.syncCamera(this.session.player);
     this.syncNpcs();
+    this.syncAvatar(view.scene);
 
     // 現在ワールドの各ポータルについて、接続先ワールドをレンダーターゲットへ描画する
     world.portals.forEach((portal, index) => {
@@ -150,6 +165,19 @@ export class ThreeRendererAdapter {
     this.renderer.render(view.scene, this.camera);
   }
 
+  /** 3人称時のみ、現在ワールドのシーンにアバターを配置する(位置=足元・向き=yaw) */
+  private syncAvatar(scene: THREE.Scene): void {
+    if (this.cameraMode !== 'third') {
+      this.avatar.visible = false;
+      return;
+    }
+    if (this.avatar.parent !== scene) scene.add(this.avatar); // 現在シーンへ(再ペアレント)
+    const p = this.session.player.position;
+    this.avatar.position.set(p.x, p.y, p.z);
+    this.avatar.rotation.y = this.session.player.yaw;
+    this.avatar.visible = true;
+  }
+
   /** 全ワールドのNPCメッシュへドメインの位置・向きを反映(ポータル越しの姿も動く) */
   private syncNpcs(): void {
     for (const world of this.session.allWorlds) {
@@ -178,6 +206,13 @@ export class ThreeRendererAdapter {
   }
 
   private syncCamera(player: Player): void {
+    if (this.cameraMode === 'third') {
+      const cam = computeThirdPersonCamera(player.position, player.yaw, player.pitch, 4, 1.4);
+      this.camera.position.set(cam.position.x, cam.position.y, cam.position.z);
+      this.camera.lookAt(cam.target.x, cam.target.y, cam.target.z);
+      this.camera.updateMatrixWorld();
+      return;
+    }
     const eye = player.eyePosition;
     this.camera.position.set(eye.x, eye.y, eye.z);
     this.camera.rotation.set(player.pitch, player.yaw, 0);
