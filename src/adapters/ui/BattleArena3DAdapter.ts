@@ -12,6 +12,7 @@ import {
 import { VirtualStickInputAdapter } from '../input/VirtualStickInputAdapter';
 import { BattleArenaView } from './BattleArenaView';
 import { BattleParticles } from './BattleParticles';
+import { computeBattleCamera } from './battleCamera';
 
 /** 1キャラの3D表示物と表示状態 */
 interface ActorView {
@@ -329,22 +330,16 @@ export class BattleArena3DAdapter implements BattleArenaView {
   private updateCamera(dt: number): void {
     const a = this.arena!;
     const cam = this.camera!;
-    const p = a.player;
-    const e = a.enemy;
-    let dx = e.x - p.x;
-    let dz = e.z - p.z;
-    const d = Math.hypot(dx, dz) || 1;
-    dx /= d;
-    dz /= d;
-    // 三人称: プレイヤーの後方やや上から、両者の中点を見る
-    const desired = new THREE.Vector3(p.x - dx * 5.0, 3.2, p.z - dz * 5.0);
+    // ステージ紐づけの俯瞰(純粋関数で算出)。位置は +Z 高所固定・X だけ中点へ部分追従
+    const pose = computeBattleCamera(a.player.x, a.player.z, a.enemy.x, a.enemy.z);
+    const desired = new THREE.Vector3(pose.px, pose.py, pose.pz);
     if (!this.camReady) {
       cam.position.copy(desired);
       this.camReady = true;
     } else {
-      cam.position.lerp(desired, Math.min(1, dt * 6));
+      cam.position.lerp(desired, Math.min(1, dt * 4));
     }
-    cam.lookAt((p.x + e.x) / 2, 0.9, (p.z + e.z) / 2);
+    cam.lookAt(pose.tx, pose.ty, pose.tz);
   }
 
   private updateHud(): void {
