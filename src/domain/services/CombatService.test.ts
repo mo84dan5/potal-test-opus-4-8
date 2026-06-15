@@ -39,7 +39,7 @@ const makeArena = (): CombatArena => {
   return new CombatArena(player, enemy);
 };
 
-const flick = (action: CombatInput['action']): CombatInput => ({ strafe: 0, forward: 0, action });
+const flick = (action: CombatInput['action']): CombatInput => ({ moveX: 0, moveZ: 0, action });
 
 describe('CombatService', () => {
   it('技は発生(windup)後に命中し、相手のHPを削る', () => {
@@ -180,13 +180,14 @@ describe('CombatService', () => {
     expect(arena.effects.some((e) => e.kind === 'hit' && e.ranged)).toBe(true);
   });
 
-  it('前進入力で相手へ近づく', () => {
+  it('相手方向へのワールド移動入力で近づく(移動はワールド空間)', () => {
     const arena = makeArena();
     arena.player.z = 5;
     arena.enemy.z = -5;
     const svc = new CombatService(idleEnemy);
     const before = arena.distance;
-    svc.tick(arena, 0.1, { strafe: 0, forward: 1, action: null });
+    // 相手は -Z 側にいる。-Z へのワールド移動で接近する
+    svc.tick(arena, 0.1, { moveX: 0, moveZ: -1, action: null });
     expect(arena.distance).toBeLessThan(before);
   });
 });

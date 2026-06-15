@@ -50,18 +50,22 @@ export interface CombatFighter {
 /** フリック入力で起こす行動。0/1/2 は技スロット(上/右/左)、'dash' は離脱ダッシュ(下) */
 export type CombatAction = 0 | 1 | 2 | 'dash';
 
-/** 1フレーム分の入力(移動は連続値、行動は単発) */
+/**
+ * 1フレーム分の入力(移動は連続値、行動は単発)。
+ * 移動は**ワールド空間の方向ベクトル**(|(moveX,moveZ)|≤1)。
+ * 「カメラ相対」への変換はカメラを知るビュー(アダプタ)が行い、ドメインは受け取った方向を適用するだけ。
+ */
 export interface CombatInput {
-  /** 左右移動(右が正、-1..1) */
-  readonly strafe: number;
-  /** 前後移動(相手へ近づく方向が正、-1..1) */
-  readonly forward: number;
+  /** ワールドX方向の移動(東が正) */
+  readonly moveX: number;
+  /** ワールドZ方向の移動(南が正) */
+  readonly moveZ: number;
   /** この瞬間に発火した行動(なければ null) */
   readonly action: CombatAction | null;
 }
 
 /** 何もしない入力(敵AIの待機やテスト用) */
-export const IDLE_INPUT: CombatInput = { strafe: 0, forward: 0, action: null };
+export const IDLE_INPUT: CombatInput = { moveX: 0, moveZ: 0, action: null };
 
 // --- 戦闘パラメータ ---
 /** 戦闘開始時のHP */

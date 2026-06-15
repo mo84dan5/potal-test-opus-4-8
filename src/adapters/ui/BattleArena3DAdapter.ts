@@ -56,6 +56,8 @@ export class BattleArena3DAdapter implements BattleArenaView {
   private pendingAction: CombatAction | null = null;
   private camReady = false;
   private onEnd: ((o: BattleOutcome) => void) | null = null;
+  /** カメラ前方の取得に使い回す一時ベクトル(毎フレームの確保を避ける) */
+  private readonly tmpDir = new THREE.Vector3();
 
   start(
     host: HTMLElement,
@@ -249,11 +251,21 @@ export class BattleArena3DAdapter implements BattleArenaView {
     this.lastTime = now;
 
     const stick = this.input?.getStick() ?? null;
-    this.service.tick(this.arena, dt, {
-      strafe: stick ? stick.x : 0,
-      forward: stick ? -stick.y : 0,
-      action: this.pendingAction,
-    });
+    // スティックをカメラの水平基底で回し、カメラ相対のワールド移動方向にする
+    let moveX = 0;
+    let moveZ = 0;
+    if (stick) {
+      const fwd = this.camera.getWorldDirection(this.tmpDir);
+      fwd.y = 0;
+      const fl = Math.hypot(fwd.x, fwd.z) || 1;
+      const fx = fwd.x / fl;
+      const fz = fwd.z / fl;
+      const rx = -fz; // 画面右(= forward × up の水平成分)
+      const rz = fx;
+      moveX = rx * stick.x + fx * -stick.y; // 上(−y)=画面奥(カメラ前方)
+      moveZ = rz * stick.x + fz * -stick.y;
+    }
+    this.service.tick(this.arena, dt, { moveX, moveZ, action: this.pendingAction });
     this.pendingAction = null;
 
     this.syncActor(this.playerView!, this.arena.player, this.arena.enemy, dt);

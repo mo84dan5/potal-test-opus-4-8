@@ -115,12 +115,15 @@ export class CombatService {
           });
           return;
         }
-        // 移動: 前後(相手方向)+左右(直交方向)
-        const perpX = -uz;
-        const perpZ = ux;
-        const vx = (ux * input.forward + perpX * input.strafe) * MOVE_SPEED;
-        const vz = (uz * input.forward + perpZ * input.strafe) * MOVE_SPEED;
-        this.move(self, vx * dt, vz * dt, foe);
+        // 移動: ビューが解決したワールド空間の移動方向をそのまま適用(カメラ相対はビューの責務)
+        let mx = input.moveX;
+        let mz = input.moveZ;
+        const mlen = Math.hypot(mx, mz);
+        if (mlen > 1) {
+          mx /= mlen;
+          mz /= mlen;
+        }
+        this.move(self, mx * MOVE_SPEED * dt, mz * MOVE_SPEED * dt, foe);
         return;
       }
     }
@@ -213,6 +216,12 @@ export class SimpleEnemyController implements EnemyController {
     const enemy = arena.enemy;
     const dist = arena.distance;
 
+    // 相手(プレイヤー)へ向かうワールド方向(接近用)
+    const tx = arena.player.x - enemy.x;
+    const tz = arena.player.z - enemy.z;
+    const tlen = Math.hypot(tx, tz) || 1;
+    const approach: CombatInput = { moveX: tx / tlen, moveZ: tz / tlen, action: null };
+
     // クールダウン中でない技スロットを techCycle 起点で探す
     let slot = -1;
     for (let i = 0; i < 3; i++) {
@@ -224,19 +233,19 @@ export class SimpleEnemyController implements EnemyController {
     }
     if (slot < 0) {
       // 全部クールダウン中: 間合いを詰めて待つ
-      return dist > 3 ? { strafe: 0, forward: 1, action: null } : IDLE_INPUT;
+      return dist > 3 ? approach : IDLE_INPUT;
     }
 
     const range = enemy.fighter.techniques[slot].range;
     if (dist > range * 0.85) {
       // 間合いが遠い: 相手へ近づく
-      return { strafe: 0, forward: 1, action: null };
+      return approach;
     }
     if (this.decisionTimer <= 0) {
       // 間合い内: 技を出す(次回は別の技へ。少し間を置く)
       this.techCycle = (slot + 1) % 3;
       this.decisionTimer = 0.5;
-      return { strafe: 0, forward: 0, action: slot as CombatAction };
+      return { moveX: 0, moveZ: 0, action: slot as CombatAction };
     }
     // 間合いを保って待機
     return IDLE_INPUT;
