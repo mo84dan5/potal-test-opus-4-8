@@ -8,7 +8,7 @@
  */
 import { GameEvent } from '../domain/values/EventScript';
 import { BattleDefinition } from '../domain/values/Battle';
-import { TECH_POWER, TECH_RANGED, TECH_SWIFT } from '../domain/values/Combat';
+import { TECH_DUELIST, TECH_POWER, TECH_RANGED, TECH_SWIFT } from '../domain/values/Combat';
 
 export interface WorldObjectSpec {
   kind: 'tree' | 'rock' | 'crystal' | 'ice' | 'pillar';
@@ -624,7 +624,7 @@ export const BATTLES: Record<string, BattleDefinition> = {
       terrainName: '昼の草原',
       winComment: 'やるな…完敗だ。また勝負しよう!',
       loseComment: 'ふっ、まだまだ修行が足りないな。',
-      techniques: TECH_POWER,
+      techniques: TECH_DUELIST,
     },
     // 選べる9体(メイン+サポート)。技トリオ(速攻/剛力/遠隔)を循環で割り当て個性を出す
     roster: [

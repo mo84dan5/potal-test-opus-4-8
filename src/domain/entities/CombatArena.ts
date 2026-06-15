@@ -1,5 +1,5 @@
 import { BattleOutcome } from '../values/Battle';
-import { CombatFighter, Technique } from '../values/Combat';
+import { CombatEffect, CombatFighter, Technique } from '../values/Combat';
 
 /** 行動状態。idle のみ移動・技の発動が可能。dash 中は無敵(ジャスト回避) */
 export type ActorState = 'idle' | 'windup' | 'recovery' | 'dash';
@@ -21,6 +21,10 @@ export class CombatActor {
   /** ダッシュ中の離脱方向(単位ベクトル) */
   dashX = 0;
   dashZ = 0;
+  /** 技スロットごとの再使用までの残り時間 [s](0 で使用可) */
+  readonly techCd: number[] = [0, 0, 0];
+  /** 回避ダッシュの再使用までの残り時間 [s] */
+  dashCd = 0;
 
   constructor(
     public readonly fighter: CombatFighter,
@@ -49,6 +53,8 @@ export class CombatArena {
   outcome: BattleOutcome | null = null;
   /** 直近に起きたことの表示用メモ(例: 'ジャスト回避!' / 技名)。描画のヒント */
   lastEvent: string | null = null;
+  /** 描画用エフェクトのキュー。ビューが毎フレーム drain して空にする */
+  readonly effects: CombatEffect[] = [];
 
   constructor(
     public readonly player: CombatActor,

@@ -11,6 +11,7 @@ import {
 } from '../../domain/values/Combat';
 import { VirtualStickInputAdapter } from '../input/VirtualStickInputAdapter';
 import { BattleArenaView } from './BattleArenaView';
+import { BattleParticles } from './BattleParticles';
 
 /** 1キャラの3D表示物と表示状態 */
 interface ActorView {
@@ -37,7 +38,17 @@ export class BattleArena3DAdapter implements BattleArenaView {
   private service: CombatService | null = null;
   private playerView: ActorView | null = null;
   private enemyView: ActorView | null = null;
-  private hud: { fillP: HTMLElement; fillE: HTMLElement; numP: HTMLElement; numE: HTMLElement; event: HTMLElement } | null = null;
+  private particles: BattleParticles | null = null;
+  private hud:
+    | {
+        fillP: HTMLElement;
+        fillE: HTMLElement;
+        numP: HTMLElement;
+        numE: HTMLElement;
+        event: HTMLElement;
+        chips: HTMLElement[];
+      }
+    | null = null;
   private host: HTMLElement | null = null;
   private raf = 0;
   private lastTime = 0;
@@ -103,6 +114,7 @@ export class BattleArena3DAdapter implements BattleArenaView {
 
     this.playerView = this.buildActorView(scene, player.color);
     this.enemyView = this.buildActorView(scene, enemy.color);
+    this.particles = new BattleParticles(scene);
 
     this.buildHud(host, player, enemy);
 
@@ -130,6 +142,8 @@ export class BattleArena3DAdapter implements BattleArenaView {
     window.removeEventListener('resize', this.onResize);
     this.input?.dispose();
     this.input = null;
+    this.particles?.dispose();
+    this.particles = null;
     this.scene?.traverse((o) => {
       const m = o as THREE.Mesh;
       m.geometry?.dispose?.();
@@ -198,6 +212,12 @@ export class BattleArena3DAdapter implements BattleArenaView {
         <div class="bt3d-hp-track"><span class="bt3d-hp-fill" style="background:#ff6b6b"></span></div>
       </div>
       <div class="bt3d-event"></div>
+      <div class="bt3d-chips">
+        <div class="bt3d-chip">↑ ${player.techniques[0].name}</div>
+        <div class="bt3d-chip">→ ${player.techniques[1].name}</div>
+        <div class="bt3d-chip">← ${player.techniques[2].name}</div>
+        <div class="bt3d-chip dash">↓ 回避</div>
+      </div>
       <div class="bt3d-hint">下半分でスティック移動 / フリック: 上右左=技 下=回避ダッシュ</div>`;
     host.appendChild(hud);
     const fills = hud.querySelectorAll('.bt3d-hp-fill');
@@ -208,6 +228,7 @@ export class BattleArena3DAdapter implements BattleArenaView {
       numP: nums[0] as HTMLElement,
       numE: nums[1] as HTMLElement,
       event: hud.querySelector('.bt3d-event') as HTMLElement,
+      chips: Array.from(hud.querySelectorAll('.bt3d-chip')) as HTMLElement[],
     };
   }
 
@@ -236,6 +257,7 @@ export class BattleArena3DAdapter implements BattleArenaView {
 
     this.syncActor(this.playerView!, this.arena.player, this.arena.enemy, dt);
     this.syncActor(this.enemyView!, this.arena.enemy, this.arena.player, dt);
+    this.spawnEffects(dt);
     this.updateCamera(dt);
     this.updateHud();
     this.renderer.render(this.scene, this.camera);
@@ -284,6 +306,26 @@ export class BattleArena3DAdapter implements BattleArenaView {
     }
   }
 
+  /** ドメインが出したエフェクト(effects)を drain してパーティクルに変換する */
+  private spawnEffects(dt: number): void {
+    const arena = this.arena;
+    const particles = this.particles;
+    if (!arena || !particles) return;
+    const y = 0.9;
+    for (const e of arena.effects) {
+      if (e.kind === 'cast') {
+        particles.burst(e.x, y, e.z, e.color, e.ranged ? 10 : 14, e.ranged ? 2.4 : 3.2);
+      } else if (e.kind === 'hit') {
+        if (e.ranged) particles.beam(e.fromX, y, e.fromZ, e.x, y, e.z, e.color);
+        particles.burst(e.x, y, e.z, e.ranged ? 0x66ddff : 0xffaa33, 22, 5);
+      } else {
+        particles.burst(e.x, y, e.z, 0x66ffcc, 18, 4);
+      }
+    }
+    arena.effects.length = 0;
+    particles.update(dt);
+  }
+
   private updateCamera(dt: number): void {
     const a = this.arena!;
     const cam = this.camera!;
@@ -314,5 +356,12 @@ export class BattleArena3DAdapter implements BattleArenaView {
     hud.numP.textContent = ` ${Math.max(0, Math.round(a.player.hp))}`;
     hud.numE.textContent = `${Math.max(0, Math.round(a.enemy.hp))} `;
     hud.event.textContent = a.lastEvent ?? '';
+    // クールダウン中のチップは暗く(再使用可能になったら明るく)
+    const cds = [a.player.techCd[0], a.player.techCd[1], a.player.techCd[2], a.player.dashCd];
+    for (let i = 0; i < hud.chips.length; i++) {
+      const ready = cds[i] <= 0;
+      hud.chips[i].style.opacity = ready ? '1' : '0.35';
+      hud.chips[i].classList.toggle('ready', ready);
+    }
   }
 }

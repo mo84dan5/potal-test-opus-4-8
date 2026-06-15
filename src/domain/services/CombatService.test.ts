@@ -16,6 +16,7 @@ const tech = (over: Partial<Technique> = {}): Technique => ({
   damage: 20,
   windup: 0.3,
   recovery: 0.3,
+  cooldown: 1.0,
   ...over,
 });
 
@@ -117,6 +118,66 @@ describe('CombatService', () => {
     const svc = new CombatService(idleEnemy);
     svc.tick(arena, 0.5, flick(0));
     expect(arena.player.state).toBe('idle');
+  });
+
+  it('技にはクールダウンがあり、明けるまで再使用できない', () => {
+    const arena = makeArena();
+    const svc = new CombatService(idleEnemy);
+    svc.tick(arena, 0.016, flick(0)); // 1発目
+    expect(arena.player.techCd[0]).toBeGreaterThan(0);
+    for (let i = 0; i < 40; i++) svc.tick(arena, 0.016, IDLE_INPUT); // 技完了(0.64s)
+    expect(arena.player.state).toBe('idle');
+    expect(arena.player.techCd[0]).toBeGreaterThan(0); // まだクールダウン中
+    svc.tick(arena, 0.016, flick(0)); // 2発目を試す → 出ない
+    expect(arena.player.state).toBe('idle');
+    for (let i = 0; i < 45; i++) svc.tick(arena, 0.016, IDLE_INPUT); // クールダウン明け
+    expect(arena.player.techCd[0]).toBe(0);
+    svc.tick(arena, 0.016, flick(0)); // 3発目 → 出る
+    expect(arena.player.state).toBe('windup');
+  });
+
+  it('回避ダッシュにもクールダウンがある(連続回避不可)', () => {
+    const arena = makeArena();
+    const svc = new CombatService(idleEnemy);
+    svc.tick(arena, 0.016, flick('dash'));
+    expect(arena.player.state).toBe('dash');
+    for (let i = 0; i < 20; i++) svc.tick(arena, 0.016, IDLE_INPUT); // ダッシュ終了
+    expect(arena.player.state).toBe('idle');
+    expect(arena.player.dashCd).toBeGreaterThan(0);
+    svc.tick(arena, 0.016, flick('dash')); // 連続ダッシュ不可
+    expect(arena.player.state).toBe('idle');
+  });
+
+  it('技の発動(cast)と命中(hit)でエフェクトが発行される', () => {
+    const arena = makeArena();
+    const svc = new CombatService(idleEnemy);
+    svc.tick(arena, 0.016, flick(0));
+    expect(arena.effects.some((e) => e.kind === 'cast')).toBe(true);
+    arena.effects.length = 0; // ビューが drain した想定
+    for (let i = 0; i < 30; i++) svc.tick(arena, 0.016, IDLE_INPUT);
+    expect(arena.effects.some((e) => e.kind === 'hit')).toBe(true);
+  });
+
+  it('長距離技(ranged)は遠くても命中し、エフェクトに ranged フラグが立つ', () => {
+    const player = new CombatActor(
+      {
+        name: 'P',
+        color: 1,
+        techniques: [tech({ range: 8, ranged: true, windup: 0.2 }), tech(), tech()],
+      },
+      COMBAT_MAX_HP,
+    );
+    const enemy = new CombatActor(fighter('E'), COMBAT_MAX_HP);
+    player.x = 0;
+    player.z = 4;
+    enemy.x = 0;
+    enemy.z = -4; // 距離8(近接 range2 では届かない)
+    const arena = new CombatArena(player, enemy);
+    const svc = new CombatService(idleEnemy);
+    svc.tick(arena, 0.016, flick(0));
+    for (let i = 0; i < 20; i++) svc.tick(arena, 0.016, IDLE_INPUT);
+    expect(enemy.hp).toBeLessThan(COMBAT_MAX_HP);
+    expect(arena.effects.some((e) => e.kind === 'hit' && e.ranged)).toBe(true);
   });
 
   it('前進入力で相手へ近づく', () => {

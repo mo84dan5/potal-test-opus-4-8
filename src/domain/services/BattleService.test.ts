@@ -5,9 +5,9 @@ import { Technique } from '../values/Combat';
 import { BattleService } from './BattleService';
 
 const trio: readonly [Technique, Technique, Technique] = [
-  { name: 't0', range: 2, damage: 5, windup: 0.3, recovery: 0.3 },
-  { name: 't1', range: 2, damage: 5, windup: 0.3, recovery: 0.3 },
-  { name: 't2', range: 2, damage: 5, windup: 0.3, recovery: 0.3 },
+  { name: 't0', range: 2, damage: 5, windup: 0.3, recovery: 0.3, cooldown: 1 },
+  { name: 't1', range: 2, damage: 5, windup: 0.3, recovery: 0.3, cooldown: 1 },
+  { name: 't2', range: 2, damage: 5, windup: 0.3, recovery: 0.3, cooldown: 1 },
 ];
 
 const def: BattleDefinition = {

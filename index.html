@@ -364,6 +364,32 @@
         font-size: 12px;
         white-space: nowrap;
       }
+      #battle-overlay .bt3d-chips {
+        position: absolute;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 34px);
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 6px;
+      }
+      #battle-overlay .bt3d-chip {
+        padding: 5px 9px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: rgba(20, 28, 56, 0.6);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        transition: opacity 0.12s;
+      }
+      #battle-overlay .bt3d-chip.ready {
+        border-color: rgba(255, 220, 120, 0.8);
+        box-shadow: 0 0 8px rgba(255, 211, 90, 0.35);
+      }
+      #battle-overlay .bt3d-chip.dash.ready {
+        border-color: rgba(120, 220, 255, 0.85);
+        box-shadow: 0 0 8px rgba(90, 209, 255, 0.4);
+      }
       #battle-overlay .bt-phase {
         font-size: 18px;
         font-weight: 800;
