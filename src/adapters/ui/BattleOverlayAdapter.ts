@@ -1,6 +1,6 @@
 import { BattleSession } from '../../domain/entities/BattleSession';
 import { BattleService } from '../../domain/services/BattleService';
-import { BattleArenaAdapter } from './BattleArenaAdapter';
+import { BattleArenaView } from './BattleArenaView';
 
 /** 0xRRGGBB を CSS の #rrggbb に変換 */
 function colorCss(n: number): string {
@@ -19,8 +19,8 @@ export class BattleOverlayAdapter {
   constructor(
     private readonly root: HTMLElement,
     private readonly service: BattleService,
-    /** fight フェーズのアクション戦闘を担うアリーナ(DIP) */
-    private readonly arena: BattleArenaAdapter,
+    /** fight フェーズのアクション戦闘ビュー(2D/3D 差し替え可能。DIP) */
+    private readonly arena: BattleArenaView,
     /** 戦闘を閉じて元の世界へ戻すコールバック(activeBattle の解除はここで行う) */
     private readonly onExit: () => void,
   ) {}

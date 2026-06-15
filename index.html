@@ -308,6 +308,62 @@
         height: 100%;
         touch-action: none;
       }
+      /* 3Dアリーナの上に重ねるHUD(HP・イベント・操作ヒント) */
+      #battle-overlay .bt3d-hud {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      #battle-overlay .bt3d-hp {
+        position: absolute;
+        top: calc(env(safe-area-inset-top, 0px) + 12px);
+        width: 40%;
+        max-width: 240px;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+      }
+      #battle-overlay .bt3d-hp.left {
+        left: 14px;
+      }
+      #battle-overlay .bt3d-hp.right {
+        right: 14px;
+        text-align: right;
+      }
+      #battle-overlay .bt3d-hp-track {
+        margin-top: 4px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.18);
+        overflow: hidden;
+      }
+      #battle-overlay .bt3d-hp-fill {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        transition: width 0.15s;
+      }
+      #battle-overlay .bt3d-event {
+        position: absolute;
+        top: 18%;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #ffe27a;
+        font-size: 20px;
+        font-weight: 800;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+        white-space: nowrap;
+      }
+      #battle-overlay .bt3d-hint {
+        position: absolute;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+        left: 50%;
+        transform: translateX(-50%);
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 12px;
+        white-space: nowrap;
+      }
       #battle-overlay .bt-phase {
         font-size: 18px;
         font-weight: 800;

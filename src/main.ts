@@ -20,7 +20,7 @@ import { BattleService } from './domain/services/BattleService';
 import { BattleSession } from './domain/entities/BattleSession';
 import { ChoicePrompt } from './domain/values/Choice';
 import { BattleOverlayAdapter } from './adapters/ui/BattleOverlayAdapter';
-import { BattleArenaAdapter } from './adapters/ui/BattleArenaAdapter';
+import { BattleArena3DAdapter } from './adapters/ui/BattleArena3DAdapter';
 import { ChoiceOverlayAdapter } from './adapters/ui/ChoiceOverlayAdapter';
 import { Collider } from './domain/values/Collider';
 import { CliffField, HeightField, HillyTerrain, TwoFloorField } from './domain/values/Terrain';
@@ -482,7 +482,7 @@ saveCloseBtn.addEventListener('click', closeSavePanel);
 
 // --- 戦闘 / 選択肢オーバーレイ ---
 // 戦闘終了で activeBattle を解除し、元の世界へ戻す(進行状況・フラグは不変)
-const battleArena = new BattleArenaAdapter();
+const battleArena = new BattleArena3DAdapter();
 const battleOverlay = new BattleOverlayAdapter(battleOverlayEl, battleService, battleArena, () => {
   session.activeBattle = null;
 });
@@ -598,7 +598,8 @@ function frame(now: number): void {
   saveBtn!.style.display =
     session.activeEvent || session.choice || session.activeBattle ? 'none' : '';
   updateInteractionUi();
-  renderer.render(dt);
+  // 戦闘中は専用の3Dアリーナが前面を描くので、ワールドの描画は止める
+  if (!session.activeBattle) renderer.render(dt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
