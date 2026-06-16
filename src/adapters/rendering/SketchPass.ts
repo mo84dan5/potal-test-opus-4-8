@@ -72,11 +72,13 @@ const FRAG = /* glsl */ `
  */
 export class SketchPass {
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
   private readonly material: THREE.ShaderMaterial;
   private readonly quad: THREE.Mesh;
 
   constructor(width: number, height: number) {
+    // クアッドは z=0、カメラは z=1 から -Z を見る(前面を確実に向く・近接面クリップを避ける)
+    this.camera.position.z = 1;
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         tDiffuse: { value: null },
@@ -87,8 +89,10 @@ export class SketchPass {
       fragmentShader: FRAG,
       depthTest: false,
       depthWrite: false,
+      side: THREE.DoubleSide,
     });
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
+    this.quad.frustumCulled = false; // 全画面なので視錐台カリングで消えないように
     this.scene.add(this.quad);
   }
 
