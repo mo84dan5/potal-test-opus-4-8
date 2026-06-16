@@ -403,8 +403,8 @@ export class ThreeRendererAdapter {
         const moonLight = new THREE.DirectionalLight(0xcdd8ff, 1.15);
         moonLight.position.set(-8, 18, -6);
         scene.add(moonLight);
-        // 夜の地面はほのかに発光(光る粒が淡く灯る)
-        this.addGround(scene, 'dirt', terrain, { color: 0x8a93d8, intensity: 0.5 });
+        // 夜の地面はほのかに発光(下地全体がうっすら灯り、光る粒はより明るく)
+        this.addGround(scene, 'dirt', terrain, { color: 0xaab2ee, intensity: 1.0 });
 
         const moon = new THREE.Mesh(
           new THREE.SphereGeometry(2.4, 24, 24),
