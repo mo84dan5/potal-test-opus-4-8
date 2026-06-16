@@ -399,7 +399,7 @@ export class ThreeRendererAdapter {
         scene.background = new THREE.Color(0x1a2348);
         scene.fog = new THREE.Fog(0x1a2348, 34, 95);
         scene.add(new THREE.HemisphereLight(0x9fb0ff, 0x35305a, 1.0));
-        scene.add(new THREE.AmbientLight(0x5a6699, 0.6)); // 暗部が潰れないよう一様な底上げ
+        scene.add(new THREE.AmbientLight(0x8088b5, 1.0)); // 暗部が潰れないよう一様な底上げ(やや明るめ)
         const moonLight = new THREE.DirectionalLight(0xcdd8ff, 1.15);
         moonLight.position.set(-8, 18, -6);
         scene.add(moonLight);
