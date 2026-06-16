@@ -6,6 +6,7 @@ import { World } from '../../domain/entities/World';
 import { CliffField, HeightField } from '../../domain/values/Terrain';
 import { Vec3 } from '../../domain/values/Vec3';
 import { computeThirdPersonCamera, occludedCameraDistance, smoothTowards } from './cameraView';
+import { SketchPass } from './SketchPass';
 
 /** 3人称カメラのブーム距離スムージングの強さ [1/s] */
 const CAMERA_SMOOTH_RATE = 12;
@@ -73,6 +74,12 @@ export class ThreeRendererAdapter {
   private readonly cameraRay = new THREE.Raycaster();
   /** 3人称カメラのブーム距離(スムージング用)。null は未初期化(=次フレーム即スナップ) */
   private smoothedCamDist: number | null = null;
+  /** 本描画の出力先(手書き風ポストの入力)。最終はここを SketchPass で画面へ */
+  private readonly sceneRT: THREE.WebGLRenderTarget;
+  /** 手書き風スケッチのポストパス */
+  private readonly sketch: SketchPass;
+  /** 手書きゆれ(boil)用の経過時間 [s] */
+  private elapsed = 0;
 
   constructor(
     container: HTMLElement,
@@ -99,6 +106,10 @@ export class ThreeRendererAdapter {
     for (let i = 0; i < maxPortals; i++) {
       this.renderTargetPool.push(new THREE.WebGLRenderTarget(size.x, size.y));
     }
+
+    // 本描画を一旦ここへ描き、手書き風ポストで画面へ出す
+    this.sceneRT = new THREE.WebGLRenderTarget(size.x, size.y);
+    this.sketch = new SketchPass(size.x, size.y);
 
     for (const world of this.session.allWorlds) {
       this.views.set(world.id, this.buildWorld(world, size));
@@ -171,8 +182,11 @@ export class ThreeRendererAdapter {
       if (material) material.uniforms.portalTexture.value = rt.texture;
     });
 
-    this.renderer.setRenderTarget(null);
+    // 本描画はオフスクリーンへ。最終出力は手書き風ポストでキャンバスへ
+    this.renderer.setRenderTarget(this.sceneRT);
     this.renderer.render(view.scene, this.camera);
+    this.elapsed += dt;
+    this.sketch.render(this.renderer, this.sceneRT.texture, this.elapsed);
   }
 
   /** 3人称時のみ、現在ワールドのシーンにアバターを配置する(位置=足元・向き=yaw) */
@@ -278,6 +292,8 @@ export class ThreeRendererAdapter {
 
     const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
     for (const rt of this.renderTargetPool) rt.setSize(size.x, size.y);
+    this.sceneRT.setSize(size.x, size.y);
+    this.sketch.setSize(size.x, size.y);
     for (const view of this.views.values()) {
       for (const material of view.portalMaterials.values()) {
         (material.uniforms.resolution.value as THREE.Vector2).copy(size);
