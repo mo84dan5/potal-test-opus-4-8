@@ -396,10 +396,10 @@ export class ThreeRendererAdapter {
         break;
       }
       case 'night': {
-        scene.background = new THREE.Color(0x0b1026);
-        scene.fog = new THREE.Fog(0x0b1026, 30, 90);
-        scene.add(new THREE.HemisphereLight(0x8899ff, 0x221144, 0.5));
-        const moonLight = new THREE.DirectionalLight(0xaabbff, 0.7);
+        scene.background = new THREE.Color(0x1a2348);
+        scene.fog = new THREE.Fog(0x1a2348, 34, 95);
+        scene.add(new THREE.HemisphereLight(0x9fb0ff, 0x35305a, 1.0));
+        const moonLight = new THREE.DirectionalLight(0xcdd8ff, 1.15);
         moonLight.position.set(-8, 18, -6);
         scene.add(moonLight);
         this.addGround(scene, 'dirt', terrain);
