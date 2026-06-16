@@ -403,7 +403,8 @@ export class ThreeRendererAdapter {
         const moonLight = new THREE.DirectionalLight(0xcdd8ff, 1.15);
         moonLight.position.set(-8, 18, -6);
         scene.add(moonLight);
-        this.addGround(scene, 'dirt', terrain);
+        // 夜の地面はほのかに発光(光る粒が淡く灯る)
+        this.addGround(scene, 'dirt', terrain, { color: 0x8a93d8, intensity: 0.5 });
 
         const moon = new THREE.Mesh(
           new THREE.SphereGeometry(2.4, 24, 24),
@@ -695,6 +696,8 @@ export class ThreeRendererAdapter {
     scene: THREE.Scene,
     pattern: GroundPattern,
     terrain: HeightField,
+    /** ほのかな自己発光(0で無効)。テクスチャを emissiveMap に使い、明るい粒だけ光らせる */
+    glow?: { color: number; intensity: number },
   ): void {
     const texture = createGroundTexture(pattern);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -711,10 +714,14 @@ export class ThreeRendererAdapter {
     }
     geometry.computeVertexNormals();
 
-    const ground = new THREE.Mesh(
-      geometry,
-      new THREE.MeshLambertMaterial({ map: texture }),
-    );
+    const material = new THREE.MeshLambertMaterial({ map: texture });
+    if (glow) {
+      // テクスチャの明るい部分(光る粒)だけがほのかに発光する
+      material.emissive = new THREE.Color(glow.color);
+      material.emissiveMap = texture;
+      material.emissiveIntensity = glow.intensity;
+    }
+    const ground = new THREE.Mesh(geometry, material);
     scene.add(ground);
   }
 
