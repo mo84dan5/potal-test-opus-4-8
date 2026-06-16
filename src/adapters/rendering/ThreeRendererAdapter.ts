@@ -447,12 +447,8 @@ export class ThreeRendererAdapter {
   /** 室内ワールド: 床・天井・四方の壁・暖色光で囲まれた広い部屋を描く(屋外環境なし) */
   private buildRoom(scene: THREE.Scene, room: RoomSpec): void {
     scene.background = new THREE.Color(0x241d2e);
-    // 室内は屋外のような方向性のある空光がない。一様なアンビエントで全体を満たし、
-    // 天井ランプ(明確な光源)をアクセントに置く。
-    scene.add(new THREE.AmbientLight(0xfff0d8, 0.95));
-    const lamp = new THREE.PointLight(0xffe6b8, 1.3, 0, 0); // distance=0 → 減衰なし
-    lamp.position.set(0, room.height - 0.6, 0);
-    scene.add(lamp);
+    // 室内は屋外のような方向性のある空光がない。点光源は使わず、アンビエントで一様に満たす。
+    scene.add(new THREE.AmbientLight(0xfff0d8, 1.15));
 
     const w = room.width / 2;
     const d = room.depth / 2;
@@ -489,6 +485,16 @@ export class ThreeRendererAdapter {
     wall(t, room.depth, w, 0); // 右壁
   }
 
+  /** 木目テクスチャ付きの Lambert マテリアルを作る(要素ごとに違う樹種を割り当てる) */
+  private woodMaterial(opts: WoodOptions, repeatU: number, repeatV: number): THREE.MeshLambertMaterial {
+    const tex = createWoodTexture(opts);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(repeatU, repeatV);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+    return new THREE.MeshLambertMaterial({ map: tex });
+  }
+
   /**
    * 2階建ての家(室内)。1階+右側の階段+奥のロフト(2階)+手すり+家具を描く。
    * 高さ場(TwoFloorField)と座標を共有するので、見た目と歩ける高さが一致する。
@@ -502,17 +508,17 @@ export class ThreeRendererAdapter {
     const t = 0.3; // 壁厚
 
     scene.background = new THREE.Color(0x20242e);
-    scene.add(new THREE.HemisphereLight(0xfff0d8, 0x2a2630, 0.8));
-    const lamp1 = new THREE.PointLight(0xffe6b8, 1.0, 0, 0);
-    lamp1.position.set(0, FH - 0.4, -2);
-    const lamp2 = new THREE.PointLight(0xffe6b8, 1.0, 0, 0);
-    lamp2.position.set(0, H - 0.5, 3);
-    scene.add(lamp1, lamp2);
+    // 点光源は使わず、アンビエント + 緩いヘミスフィアで一様に照らす(形は残す)
+    scene.add(new THREE.AmbientLight(0xfff0d8, 0.7));
+    scene.add(new THREE.HemisphereLight(0xfff0d8, 0x2a2630, 0.75));
 
     const wallMat = new THREE.MeshLambertMaterial({ color: 0xd8cbb0, side: THREE.DoubleSide });
-    const floorMat = new THREE.MeshLambertMaterial({ color: 0x6b5a45 });
-    const woodMat = new THREE.MeshLambertMaterial({ color: 0x8a6240 });
-    const trimMat = new THREE.MeshLambertMaterial({ color: 0x5a3f28 });
+    // 木部はすべて木目調にし、要素ごとに違う樹種(色味+シード)で印象を変える
+    const floorMat = this.woodMaterial({ seed: 0x0a11, base: '#b08a5a', dark: '#7a5630', light: '#d8b889' }, 5, 5); // 1階床: オーク
+    const stairMat = this.woodMaterial({ seed: 0x0b22, base: '#9c5a44', dark: '#6e3a28', light: '#c98a6e' }, 1, 1); // 階段: チェリー
+    const trimMat = this.woodMaterial({ seed: 0x0c33, base: '#5e4632', dark: '#3a2a1c', light: '#836448' }, 1, 1); // 手すり/縁: ウォルナット
+    const tableMat = this.woodMaterial({ seed: 0x0d44, base: '#c8a06a', dark: '#9a7242', light: '#e6cfa0' }, 1, 1); // テーブル: メープル
+    const bedMat = this.woodMaterial({ seed: 0x0e55, base: '#8a4a3a', dark: '#5e2e22', light: '#b06a54' }, 1, 2); // ベッド: マホガニー
     const box = (
       sx: number, sy: number, sz: number,
       x: number, y: number, z: number,
@@ -539,14 +545,13 @@ export class ThreeRendererAdapter {
     box(t, H, c.depth, -w, H / 2, 0, wallMat); // 左壁
     box(t, H, c.depth, w, H / 2, 0, wallMat); // 右壁
 
-    // ロフト(2階)の床スラブ: z ∈ [loftFrontZ, d]、上面が FH。木目調にする
+    // ロフト(2階)の床スラブ: z ∈ [loftFrontZ, d]、上面が FH。木目調(パイン)
     const loftDepth = d - c.loftFrontZ;
-    const loftTex = createWoodTexture();
-    loftTex.wrapS = loftTex.wrapT = THREE.RepeatWrapping;
-    loftTex.repeat.set(Math.max(1, Math.round(c.width / 2)), Math.max(1, Math.round(loftDepth / 2)));
-    loftTex.colorSpace = THREE.SRGBColorSpace;
-    loftTex.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
-    const loftMat = new THREE.MeshLambertMaterial({ map: loftTex });
+    const loftMat = this.woodMaterial(
+      { seed: 0x0f66, base: '#cdab78', dark: '#a07f4e', light: '#ece0c0' },
+      3,
+      3,
+    );
     box(c.width, 0.2, loftDepth, 0, FH - 0.1, (c.loftFrontZ + d) / 2, loftMat);
 
     // 階段: 右レーン(x ∈ [stairXMin, w])を z 方向に 0→FH へ昇る段
@@ -561,7 +566,7 @@ export class ThreeRendererAdapter {
       box(
         stairW, topY, stepDepth * 1.8,
         stairCx, topY / 2, c.stairZBottom + (i + 0.5) * stepDepth,
-        woodMat,
+        stairMat,
       );
     }
 
@@ -573,14 +578,14 @@ export class ThreeRendererAdapter {
     }
 
     // 1階の家具: テーブル(玄関側)
-    const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.07, 18), woodMat);
+    const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.07, 18), tableMat);
     tableTop.position.set(-3.5, 0.74, -3.5);
-    const tableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.7, 8), woodMat);
+    const tableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.7, 8), tableMat);
     tableLeg.position.set(-3.5, 0.37, -3.5);
     scene.add(tableTop, tableLeg);
 
     // 2階の家具: ベッド(ロフト上)
-    box(1.8, 0.4, 2.4, 3.0, FH + 0.2, 4.5, woodMat); // マットレス台
+    box(1.8, 0.4, 2.4, 3.0, FH + 0.2, 4.5, bedMat); // マットレス台
     box(1.8, 0.5, 0.2, 3.0, FH + 0.55, 5.6, trimMat); // ヘッドボード
     box(1.6, 0.16, 2.0, 3.0, FH + 0.46, 4.4, new THREE.MeshLambertMaterial({ color: 0xcfd8e6 })); // 布団
   }
@@ -1064,25 +1069,36 @@ function seededRandom(seed: number): () => number {
   };
 }
 
+/** 木目テクスチャの見た目パラメータ(色味とシードで一本ごとに違う木目を作る) */
+interface WoodOptions {
+  seed: number;
+  /** 下地色 */
+  base: string;
+  /** 濃い木目色 */
+  dark: string;
+  /** 明るい木目色 */
+  light: string;
+}
+
 /** 木目調のプロシージャルテクスチャ(板の継ぎ目+縦の木目+節)。外部アセット不要・決定的 */
-function createWoodTexture(): THREE.CanvasTexture {
+function createWoodTexture(opts: WoodOptions): THREE.CanvasTexture {
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.CanvasTexture(canvas);
-  const rand = seededRandom(0x7a5230);
+  const rand = seededRandom(opts.seed);
 
   // 下地
-  ctx.fillStyle = '#9c7148';
+  ctx.fillStyle = opts.base;
   ctx.fillRect(0, 0, size, size);
 
   // 縦に流れる木目(濃淡のストローク)
   ctx.lineWidth = 1;
   for (let i = 0; i < 220; i++) {
     const x = rand() * size;
-    const dark = rand() < 0.5;
-    ctx.strokeStyle = dark ? `rgba(90,58,32,${0.12 + rand() * 0.2})` : `rgba(190,150,108,${0.1 + rand() * 0.18})`;
+    ctx.globalAlpha = 0.1 + rand() * 0.2;
+    ctx.strokeStyle = rand() < 0.5 ? opts.dark : opts.light;
     const sway = (rand() - 0.5) * 14;
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -1091,11 +1107,12 @@ function createWoodTexture(): THREE.CanvasTexture {
   }
 
   // 節(楕円のうずまき)
+  ctx.strokeStyle = opts.dark;
   for (let i = 0; i < 3; i++) {
     const cx = rand() * size;
     const cy = rand() * size;
     for (let r = 2; r < 10 + rand() * 8; r += 2) {
-      ctx.strokeStyle = `rgba(70,44,24,${0.3 - r * 0.02})`;
+      ctx.globalAlpha = Math.max(0.05, 0.3 - r * 0.02);
       ctx.beginPath();
       ctx.ellipse(cx, cy, r, r * 1.6, 0.5, 0, Math.PI * 2);
       ctx.stroke();
@@ -1103,7 +1120,8 @@ function createWoodTexture(): THREE.CanvasTexture {
   }
 
   // 板の継ぎ目(横方向に数本の濃い線)
-  ctx.strokeStyle = 'rgba(60,38,20,0.5)';
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = opts.dark;
   ctx.lineWidth = 2;
   for (let p = 1; p < 4; p++) {
     const y = (p / 4) * size + (rand() - 0.5) * 6;
@@ -1112,6 +1130,7 @@ function createWoodTexture(): THREE.CanvasTexture {
     ctx.lineTo(size, y);
     ctx.stroke();
   }
+  ctx.globalAlpha = 1;
 
   return new THREE.CanvasTexture(canvas);
 }
