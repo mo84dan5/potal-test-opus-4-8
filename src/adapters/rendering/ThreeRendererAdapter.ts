@@ -539,9 +539,15 @@ export class ThreeRendererAdapter {
     box(t, H, c.depth, -w, H / 2, 0, wallMat); // 左壁
     box(t, H, c.depth, w, H / 2, 0, wallMat); // 右壁
 
-    // ロフト(2階)の床スラブ: z ∈ [loftFrontZ, d]、上面が FH
+    // ロフト(2階)の床スラブ: z ∈ [loftFrontZ, d]、上面が FH。木目調にする
     const loftDepth = d - c.loftFrontZ;
-    box(c.width, 0.2, loftDepth, 0, FH - 0.1, (c.loftFrontZ + d) / 2, floorMat);
+    const loftTex = createWoodTexture();
+    loftTex.wrapS = loftTex.wrapT = THREE.RepeatWrapping;
+    loftTex.repeat.set(Math.max(1, Math.round(c.width / 2)), Math.max(1, Math.round(loftDepth / 2)));
+    loftTex.colorSpace = THREE.SRGBColorSpace;
+    loftTex.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+    const loftMat = new THREE.MeshLambertMaterial({ map: loftTex });
+    box(c.width, 0.2, loftDepth, 0, FH - 0.1, (c.loftFrontZ + d) / 2, loftMat);
 
     // 階段: 右レーン(x ∈ [stairXMin, w])を z 方向に 0→FH へ昇る段
     const steps = 12;
@@ -1056,6 +1062,58 @@ function seededRandom(seed: number): () => number {
     s = (s * 1664525 + 1013904223) >>> 0;
     return s / 0x100000000;
   };
+}
+
+/** 木目調のプロシージャルテクスチャ(板の継ぎ目+縦の木目+節)。外部アセット不要・決定的 */
+function createWoodTexture(): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  const rand = seededRandom(0x7a5230);
+
+  // 下地
+  ctx.fillStyle = '#9c7148';
+  ctx.fillRect(0, 0, size, size);
+
+  // 縦に流れる木目(濃淡のストローク)
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 220; i++) {
+    const x = rand() * size;
+    const dark = rand() < 0.5;
+    ctx.strokeStyle = dark ? `rgba(90,58,32,${0.12 + rand() * 0.2})` : `rgba(190,150,108,${0.1 + rand() * 0.18})`;
+    const sway = (rand() - 0.5) * 14;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.bezierCurveTo(x + sway, size * 0.33, x - sway, size * 0.66, x + sway * 0.5, size);
+    ctx.stroke();
+  }
+
+  // 節(楕円のうずまき)
+  for (let i = 0; i < 3; i++) {
+    const cx = rand() * size;
+    const cy = rand() * size;
+    for (let r = 2; r < 10 + rand() * 8; r += 2) {
+      ctx.strokeStyle = `rgba(70,44,24,${0.3 - r * 0.02})`;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r, r * 1.6, 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // 板の継ぎ目(横方向に数本の濃い線)
+  ctx.strokeStyle = 'rgba(60,38,20,0.5)';
+  ctx.lineWidth = 2;
+  for (let p = 1; p < 4; p++) {
+    const y = (p / 4) * size + (rand() - 0.5) * 6;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(size, y);
+    ctx.stroke();
+  }
+
+  return new THREE.CanvasTexture(canvas);
 }
 
 function createGroundTexture(pattern: GroundPattern): THREE.CanvasTexture {
