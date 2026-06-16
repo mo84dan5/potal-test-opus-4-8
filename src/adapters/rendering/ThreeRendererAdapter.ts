@@ -447,7 +447,9 @@ export class ThreeRendererAdapter {
   /** 室内ワールド: 床・天井・四方の壁・暖色光で囲まれた広い部屋を描く(屋外環境なし) */
   private buildRoom(scene: THREE.Scene, room: RoomSpec): void {
     scene.background = new THREE.Color(0x241d2e);
-    scene.add(new THREE.HemisphereLight(0xfff0d8, 0x2a2030, 0.85));
+    // 室内は屋外のような方向性のある空光がない。一様なアンビエントで全体を満たし、
+    // 天井ランプ(明確な光源)をアクセントに置く。
+    scene.add(new THREE.AmbientLight(0xfff0d8, 0.95));
     const lamp = new THREE.PointLight(0xffe6b8, 1.3, 0, 0); // distance=0 → 減衰なし
     lamp.position.set(0, room.height - 0.6, 0);
     scene.add(lamp);
